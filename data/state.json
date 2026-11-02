@@ -1,0 +1,66 @@
+{
+  "blocked_settlements": {},
+  "day": "2026-11-02",
+  "day_start": {
+    "fees": "0",
+    "realized": "0",
+    "stale_cost": "0",
+    "unrealized": "0"
+  },
+  "day_start_equity": "283687.94",
+  "equity_status": {
+    "label": null,
+    "partial": false,
+    "value": "283663.7308"
+  },
+  "halts": {
+    "daily": null,
+    "total": false,
+    "weekly": null
+  },
+  "initial_equity": "283687.94",
+  "last_daily_report": null,
+  "last_spot": {
+    "XSP": [
+      "499.65",
+      "2026-11-02",
+      true
+    ]
+  },
+  "last_weekly_report": null,
+  "provider_derived": {
+    "keys": [
+      "equity_status",
+      "day_start_equity",
+      "week_start_equity",
+      "day_start",
+      "week_start",
+      "last_spot",
+      "session_valuation"
+    ],
+    "provider": "replay"
+  },
+  "replay_cursor": "2026-11-02T09:40:00-05:00",
+  "session_valuation": {
+    "asof_date": "2026-11-02",
+    "held": [
+      "XSP|XSP|PM|2026-12-02|C|500",
+      "XSP|XSP|PM|2026-12-02|C|515",
+      "XSP|XSP|PM|2026-12-02|P|480",
+      "XSP|XSP|PM|2026-12-02|P|500"
+    ],
+    "held_value": "2816.0000",
+    "stale": {},
+    "unrealized": "-20.0000"
+  },
+  "stale_marks": {},
+  "stale_ticks": 0,
+  "week": "2026-W45",
+  "week_start": {
+    "fees": "0",
+    "realized": "0",
+    "stale_cost": "0",
+    "unrealized": "0"
+  },
+  "week_start_equity": "283687.94"
+}
