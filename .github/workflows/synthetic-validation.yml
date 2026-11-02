@@ -1,0 +1,132 @@
+# SYNTHETIC validation only: one `optbot tick --once` per run against a deterministic made-up replay.
+# No market data, no secrets (only the built-in GITHUB_TOKEN), no broker, no orders of any kind.
+# State lives on the branch `validation-state` (git history = recoverable). Artifacts are short-lived copies, not storage.
+name: synthetic-validation
+on:
+  schedule:
+    - cron: "17 * * * *"          # hourly, best effort (GitHub may delay or skip scheduled runs)
+  workflow_dispatch:
+    inputs:
+      init:
+        description: "Create the validation-state branch (refuses if it already exists)"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: synthetic-validation     # one run at a time; a queued run waits, nothing is cancelled mid-write
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      BOOTSTRAP: optbot_v0.5.2_bootstrap.py
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: code
+          persist-credentials: false
+      - name: build optbot from the pinned bootstrap
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 "code/$BOOTSTRAP" "$RUNNER_TEMP/optbot" >/dev/null
+          test -f "$RUNNER_TEMP/optbot/src/optbot/cli.py"
+      - name: restore state (fail closed if missing)
+        env:
+          INIT: ${{ inputs.init }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/${GITHUB_REPOSITORY}.git"
+          B64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$B64"
+          AUTH="Authorization: Basic $B64"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git -c "http.extraheader=$AUTH" ls-remote --exit-code --heads "$URL" validation-state >/dev/null 2>&1; then
+            EXISTS=1
+          else
+            EXISTS=0
+          fi
+          if [ "$INIT" = "true" ]; then
+            if [ "$EXISTS" = 1 ]; then echo "::error::validation-state already exists; refusing to re-initialise"; exit 1; fi
+            mkdir state && cd state && git init -q -b validation-state
+            printf 'data/optbot.lock\n' > .gitignore
+            printf 'SYNTHETIC validation state. Made-up quotes only.\n' > README.md
+          else
+            if [ "$EXISTS" = 0 ]; then echo "::error::validation-state branch is missing; refusing to start a fresh state on a scheduled run"; exit 1; fi
+            git -c "http.extraheader=$AUTH" clone -q --branch validation-state --single-branch "$URL" state
+          fi
+          echo "AUTH_HDR=$AUTH" >> "$GITHUB_ENV"
+      - name: generate the deterministic synthetic input and check it is unchanged
+        env:
+          INIT: ${{ inputs.init }}
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="$RUNNER_TEMP/optbot/src"
+          python3 - <<'PY'
+          import os
+          from datetime import date
+          from pathlib import Path
+          from optbot.synthetic import make_series
+          from optbot.data.store import save_snapshots
+          out = Path(os.environ["RUNNER_TEMP"]) / "synthetic_input.jsonl"
+          n = save_snapshots(out, make_series("XSP", start=date(2026, 11, 2), trading_days=120, step_minutes=60, seed=7))
+          print("snapshots", n)
+          PY
+          H=$(sha256sum "$RUNNER_TEMP/synthetic_input.jsonl" | cut -d' ' -f1)
+          if [ -f state/input.sha256 ]; then
+            [ "$(cat state/input.sha256)" = "$H" ] || { echo "::error::synthetic input hash differs from the recorded one; refusing to continue on conflicting state"; exit 1; }
+          else
+            [ "$INIT" = "true" ] || { echo "::error::state has no input hash; refusing"; exit 1; }
+            printf '%s\n' "$H" > state/input.sha256
+          fi
+          echo "INPUT_SHA=$H" >> "$GITHUB_ENV"
+      - name: one tick, dashboard, status
+        run: |
+          set -uo pipefail
+          export PYTHONPATH="$RUNNER_TEMP/optbot/src"
+          cd state
+          mkdir -p data
+          OPT() { python3 -c 'import sys; from optbot.cli import main; sys.exit(main(sys.argv[1:]))' "$@"; }
+          OPT tick --once --data "$RUNNER_TEMP/synthetic_input.jsonl" --state-dir data --capital-cad 400000 | tee "$RUNNER_TEMP/tick.out"
+          RC=${PIPESTATUS[0]}
+          OPT dashboard --state-dir data --out dashboard.html >/dev/null || true
+          RC="$RC" python3 - <<'PY'
+          import json, os, datetime
+          from pathlib import Path
+          j = [json.loads(l) for l in open("data/journal.jsonl")] if Path("data/journal.jsonl").exists() else []
+          names = {0: "OK", 4: "LOCK_HELD", 7: "STATE_INTEGRITY", 10: "REPLAY_FINISHED"}
+          rc = int(os.environ["RC"])
+          s = {"mode": "SYNTHETIC REPLAY (made-up quotes, recorded clock, simulated orders only)",
+               "run_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+               "run_number": os.environ["GITHUB_RUN_NUMBER"], "event": os.environ["GITHUB_EVENT_NAME"],
+               "wall_clock_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+               "exit_code": rc, "exit_name": names.get(rc, "ERROR"),
+               "ticks_processed": sum(1 for e in j if e.get("kind") == "tick_once"),
+               "journal_entries": len(j), "input_sha256": os.environ["INPUT_SHA"],
+               "note": "Synthetic software validation. No real data, no edge, no live or broker orders."}
+          Path("status.json").write_text(json.dumps(s, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(s, indent=2))
+          PY
+          echo "### synthetic-validation" >> "$GITHUB_STEP_SUMMARY"
+          cat status.json >> "$GITHUB_STEP_SUMMARY"
+          if [ "$RC" != 0 ] && [ "$RC" != 10 ]; then echo "::error::tick exited $RC"; exit "$RC"; fi
+      - name: commit state (non-force; a conflict fails the run)
+        run: |
+          set -euo pipefail
+          cd state
+          git add -A
+          git commit -q -m "synthetic tick: run ${GITHUB_RUN_NUMBER}"
+          git -c "http.extraheader=$AUTH_HDR" push -q "https://github.com/${GITHUB_REPOSITORY}.git" HEAD:validation-state
+          git log --oneline -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-run-${{ github.run_number }}
+          path: |
+            state/dashboard.html
+            state/status.json
+          retention-days: 7
