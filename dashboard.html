@@ -60,9 +60,9 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 30px;color:var(--mut);font-s
 </div><main>
 <section id="run"><h2>Is the bot running?</h2>
 <div class="pill stop">STOPPED</div>
-<p>The bot is NOT running. Its last tick was 6 h 37 min ago. Nothing is being watched or traded until it is started again.</p>
-<div class="kv"><div><span>Last tick</span><b>2026-11-02 10:40:00 AST</b></div><div><span>Time since last tick</span><b>6 h 37 min</b></div></div>
-<div class="snap" id="snap" data-epoch="1793654247" data-limit="120">Snapshot generated 2026-11-02 17:17:27 AST.</div></section>
+<p>The bot is NOT running. Its last tick was 5 h 38 min ago. Nothing is being watched or traded until it is started again.</p>
+<div class="kv"><div><span>Last tick</span><b>2026-11-02 11:40:00 AST</b></div><div><span>Time since last tick</span><b>5 h 38 min</b></div></div>
+<div class="snap" id="snap" data-epoch="1793654322" data-limit="120">Snapshot generated 2026-11-02 17:18:42 AST.</div></section>
 <section id="stages"><h2>Where is the project?</h2><ol class="stages">
 <li class="stage done"><span class="st">done</span><b>Simulator built and tested</b><span class="note">Local synthetic simulator built; automated tests passed at release. Tests prove the code works, not that a strategy has an edge.</span></li>
 <li class="stage blocked cur"><span class="st">blocked &larr; current stage</span><b>Real options data source connected</b><span class="note">No licensed or verified options data source is connected. Terms of use must be checked first; nothing is scraped. (Shown blocked: config data.eligibility_status = NO_LICENSED_OR_VERIFIED_DATA_SOURCE.)</span></li>
@@ -75,7 +75,7 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 30px;color:var(--mut);font-s
 <section id="data"><h2>Is the data fresh?</h2><div class="kv">
 <div><span>Data source</span><b>SYNTHETIC_TEST_FIXTURE</b></div>
 <div><span>Synthetic (made-up)?</span><b><span class="chip warn">YES - made-up</span></b></div>
-<div><span>Newest quote</span><b>2026-11-02 10:40:00 AST</b></div>
+<div><span>Newest quote</span><b>2026-11-02 11:40:00 AST</b></div>
 <div><span>Stale marks</span><b><span class="chip ok">0</span></b></div>
 </div>
 </section>
@@ -83,9 +83,9 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 30px;color:var(--mut);font-s
 <div><span>Kill switch</span><b><span class="chip ok">off</span></b></div>
 </div>
 <p class="mut">No halts are active.</p>
-<h2 style="margin-top:12px">Turned down in the 24 hours up to the last recorded activity (2026-11-02 10:40:00 AST)</h2>
+<h2 style="margin-top:12px">Turned down in the 24 hours up to the last recorded activity (2026-11-02 11:40:00 AST)</h2>
 <p class="mut">No risk rejections in that window.</p>
-<p class="small mut">Other reasons the bot stayed out:</p><ul class="plain"><li>Baseline strategy: deliberately does nothing (x1)</li><li>Strategy is switched off in the config (x1)</li></ul>
+<p class="small mut">Other reasons the bot stayed out:</p><ul class="plain"><li>Already holding this kind of structure (x2)</li><li>Baseline strategy: deliberately does nothing (x2)</li><li>Strategy is switched off in the config (x2)</li></ul>
 </section>
 <section id="trades"><h2>Trades taken (simulated)</h2>
 <table><thead><tr><th>Time</th><th>Underlying</th><th>Structure</th><th>Legs</th><th>Cost incl. fees (USD)</th><th>Status</th><th>Result</th></tr></thead><tbody>
@@ -96,19 +96,20 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 30px;color:var(--mut);font-s
 <section id="money"><h2>Money <span class="chip warn">SIMULATED</span> (USD)</h2><div class="kv">
 <div><span>Starting capital</span><b>283,687.94</b></div>
 <div><span>Cash</span><b>280,847.73</b></div>
-<div><span>Equity</span><b>283,663.73</b></div>
+<div><span>Equity</span><b>283,671.73</b></div>
 <div><span>Realized P&amp;L (before fees)</span><b>0.00</b></div>
 <div><span>Fees paid</span><b>4.21</b></div>
-<div><span>Unrealized</span><b>-20.00</b></div>
+<div><span>Unrealized</span><b>-12.00</b></div>
 </div>
 <p class="small mut">Unrealized: the bot&#x27;s last recorded valuation at pessimistic liquidation marks (longs at bid, shorts at ask), not realized profit. Starting capital is starting capital is a configured TEST INPUT for the simulation. It is not a verified currency conversion and not a statement about any real amount. Every figure on this page is simulated.</p>
+<h2 style="margin-top:12px">Simulated equity over time</h2><svg viewBox="0 0 600 170" role="img" aria-label="Simulated equity line, 283,663.73 to 283,671.73 USD"><line class="axis" x1="8" y1="148" x2="592" y2="148"/><polyline class="line" points="8.0,148.0 592.0,14.0"/><text x="8" y="11">283,671.73</text><text x="8" y="166">2026-11-02  low 283,663.73</text><text x="592" y="166" text-anchor="end">2026-11-02</text></svg>
 </section>
 <section id="retention"><h2>Provider data on disk</h2>
-<div class="kv"><div><span>Providers seen in the journal</span><b>replay</b></div><div><span>Journal entries with provider-derived fields</span><b>11</b></div><div><span>Entries already purged</span><b>0</b></div><div><span>Journal hash chain</span><b><span class="chip ok">intact</span></b></div></div>
+<div class="kv"><div><span>Providers seen in the journal</span><b>replay</b></div><div><span>Journal entries with provider-derived fields</span><b>12</b></div><div><span>Entries already purged</span><b>0</b></div><div><span>Journal hash chain</span><b><span class="chip ok">intact</span></b></div></div>
 <p class="small"><b>Present:</b> decision.max_loss, execution.fee_total, execution.fills, execution.net_cash, health.cash, health.day_start, health.day_start_equity, health.equity, health.equity_label, health.fees_total, health.newest_quote_ts, health.realized_gross, health.stale_cost, health.stale_marked_value, health.unrealized, health.week_start, health.week_start_equity, intent.limit_net, ledger.fees, ledger.meta.max_loss, ledger.price</p>
 <p class="small"><b>Purged:</b> none</p>
 <p class="small mut">Raw quote payloads are held in memory only and are never written to disk. Values derived from quotes (fill prices, marks, P&amp;L, equity) are journalled and tagged provider_derived so they can be purged.</p></section></main>
-<footer><p>optbot v0.5.2 &middot; generated 2026-11-02 17:17:27 AST &middot; simulation only</p><p><b>Passing tests prove the code works, not that a strategy has an edge. No edge demonstrated.</b></p></footer>
+<footer><p>optbot v0.5.2 &middot; generated 2026-11-02 17:18:42 AST &middot; simulation only</p><p><b>Passing tests prove the code works, not that a strategy has an edge. No edge demonstrated.</b></p></footer>
 <script>
 (function(){
   var g=document.getElementById('snap'); if(!g){return;}

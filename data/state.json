@@ -11,7 +11,7 @@
   "equity_status": {
     "label": null,
     "partial": false,
-    "value": "283663.7308"
+    "value": "283671.7308"
   },
   "halts": {
     "daily": null,
@@ -22,7 +22,7 @@
   "last_daily_report": null,
   "last_spot": {
     "XSP": [
-      "499.65",
+      "500.35",
       "2026-11-02",
       true
     ]
@@ -40,7 +40,7 @@
     ],
     "provider": "replay"
   },
-  "replay_cursor": "2026-11-02T09:40:00-05:00",
+  "replay_cursor": "2026-11-02T10:40:00-05:00",
   "session_valuation": {
     "asof_date": "2026-11-02",
     "held": [
@@ -49,9 +49,9 @@
       "XSP|XSP|PM|2026-12-02|P|480",
       "XSP|XSP|PM|2026-12-02|P|500"
     ],
-    "held_value": "2816.0000",
+    "held_value": "2824.0000",
     "stale": {},
-    "unrealized": "-20.0000"
+    "unrealized": "-12.0000"
   },
   "stale_marks": {},
   "stale_ticks": 0,
