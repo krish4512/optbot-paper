@@ -1,13 +1,13 @@
 {
-  "event": "workflow_dispatch",
+  "event": "schedule",
   "exit_code": 0,
   "exit_name": "OK",
   "input_sha256": "0a8800a434c7482de1117031da9889ce2072ba51d1d6c4c6847a2fff32ffb831",
-  "journal_entries": 25,
+  "journal_entries": 33,
   "mode": "SYNTHETIC REPLAY (made-up quotes, recorded clock, simulated orders only)",
   "note": "Synthetic software validation. No real data, no edge, no live or broker orders.",
-  "run_number": "2",
-  "run_url": "https://github.com/krish4512/optbot-paper/actions/runs/41527138160",
-  "ticks_processed": 2,
-  "wall_clock_utc": "2026-11-02T21:18:42+00:00"
+  "run_number": "3",
+  "run_url": "https://github.com/krish4512/optbot-paper/actions/runs/41613417539",
+  "ticks_processed": 3,
+  "wall_clock_utc": "2026-11-03T09:44:15+00:00"
 }
