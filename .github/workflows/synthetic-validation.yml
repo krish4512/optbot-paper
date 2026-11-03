@@ -4,7 +4,7 @@
 name: synthetic-validation
 on:
   schedule:
-    - cron: "17 * * * *"          # hourly, best effort (GitHub may delay or skip scheduled runs)
+    - cron: "23 * * * *"          # hourly, best effort (GitHub may delay or skip scheduled runs)
   workflow_dispatch:
     inputs:
       init:
