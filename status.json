@@ -3,11 +3,11 @@
   "exit_code": 0,
   "exit_name": "OK",
   "input_sha256": "0a8800a434c7482de1117031da9889ce2072ba51d1d6c4c6847a2fff32ffb831",
-  "journal_entries": 33,
+  "journal_entries": 41,
   "mode": "SYNTHETIC REPLAY (made-up quotes, recorded clock, simulated orders only)",
   "note": "Synthetic software validation. No real data, no edge, no live or broker orders.",
-  "run_number": "3",
-  "run_url": "https://github.com/krish4512/optbot-paper/actions/runs/41613417539",
-  "ticks_processed": 3,
-  "wall_clock_utc": "2026-11-03T09:44:15+00:00"
+  "run_number": "4",
+  "run_url": "https://github.com/krish4512/optbot-paper/actions/runs/41688864408",
+  "ticks_processed": 4,
+  "wall_clock_utc": "2026-11-03T17:55:57+00:00"
 }
