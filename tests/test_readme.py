@@ -11,12 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.1_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.2_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
 def files():
-    spec = importlib.util.spec_from_file_location("boot061", BOOT)
+    spec = importlib.util.spec_from_file_location("boot062", BOOT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.FILES
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.1"' in files["pyproject.toml"]
+    assert 'version = "0.6.2"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -176,3 +176,16 @@ def test_workflow_file_is_described_as_pinned_and_disabled():
     wf = (ROOT / ".github" / "workflows" / "synthetic-validation.yml").read_text()
     assert "optbot_v0.5.2_bootstrap.py" in wf and "optbot_v0.5.2_bootstrap.py" in README
     assert "disabled_manually" in README
+
+
+def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files):
+    for needle in ("Rejection diagnostics (v0.6.2)", "optbot report --kind rejections", "Why no trades opened",
+                   "smallest `capital.paper_capital_cad`", "change no strategy rule, limit, default or trade"):
+        assert needle in README, needle
+    assert '"rejections"' in files["src/optbot/cli.py"] and "diagnostics.py" in " ".join(files)
+    assert "10011" in README and "10010" in README
+
+
+def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
+    n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
+    assert n_tests > 0 and "1346 tests" in README
