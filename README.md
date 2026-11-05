@@ -2,7 +2,7 @@
 
 Paper-only options study bot (development version, not production-ready, not running anywhere). SIMULATION ONLY: no live orders, no broker SDK, no real market data in this repository, no profit claims. No edge demonstrated.
 
-This page explains, in plain English, what the bot (v0.6.8) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
+This page explains, in plain English, what the bot (v0.6.9) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
 
 ## Honesty points (read these first)
 
@@ -126,7 +126,7 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 **One command tells the truth about all of this: `optbot doctor` (v0.6.6).** It is read-only (it writes nothing and never creates a directory) and prints a pass/warn/fail report with a plain-English reason for each item, then a verdict such as `READY for: local synthetic replay only. BLOCKED for: real-data paper run (4 blockers), live trading (6 blockers: not authorized, no broker path).` `--target synthetic-replay|paper-data|live` chooses what the exit code is about (0 when that target is not blocked, 1 when it is); `live` is always blocked. It checks config consistency, the external blockers below, the environment and state, and the code's own safety invariants. It cannot see whether the GitHub workflow is enabled (that is a repository setting), and READY never means a strategy has an edge.
 
 - **No real market data.** No data provider is implemented, and no vendor terms have been verified. Since v0.6.7 a written **provider contract** says what a future real feed would have to satisfy (`docs/PROVIDER_CONTRACT.md` and `optbot.data.contract` inside the tree: the exact surface the pipeline uses, 28 rules, a validator for one snapshot, and a reusable conformance suite that the existing synthetic provider passes). It is a specification only: no feed was built, nothing in the bot uses it yet, and it does not unblock a real-data run. Only a replay reader for recorded synthetic files exists, plus a placeholder that raises.
-- **Multi-regime comparison (v0.6.8, research tooling).** `optbot walkforward-synthetic --regimes all` runs the same strategy configuration through four invented synthetic regimes (random-walk control, trending-up, range-bound, vol-spike) and prints one comparison table: trades, win rate, average P&L, max drawdown, cost share of P&L and an aggregate row. The report opens with: synthetic data only, the regimes are invented, different results across regimes are not evidence about real markets, and no edge has been demonstrated. Where trade counts are below the cost-study gate it says the numbers are anecdotes. It changes no strategy, risk or default and leaves the pinned replays and golden digests byte-identical.
+- **Multi-regime comparison (v0.6.8, research tooling).** `optbot walkforward-synthetic --regimes all` runs the same strategy configuration through four invented synthetic regimes (random-walk control, trending-up, range-bound, vol-spike) and prints one comparison table: trades, win rate, average P&L, max drawdown, cost share of P&L and an aggregate row. The report opens with: synthetic data only, the regimes are invented, different results across regimes are not evidence about real markets, and no edge has been demonstrated. Where trade counts are below the cost-study gate it says the numbers are anecdotes. It changes no strategy, risk or default and leaves the pinned replays and golden digests byte-identical. Since v0.6.9 `--seeds N` repeats it over N invented seeds and shows min / median / max per regime, because results vary across seeds and the spread shows how much of an apparent regime difference is just randomness in made-up data; it is still no evidence about real markets and no edge has been demonstrated. `--seeds 1` (the default) is byte-identical to v0.6.8.
 - **No broker connection.** No broker SDK, no order routing, no credentials. The "live broker" refuses to be created.
 - **The scheduled GitHub workflow is disabled** (`disabled_manually`). It is pinned to `optbot_v0.5.2_bootstrap.py`, and was only ever a synthetic software check.
 - **No demonstrated edge.** No strategy has been tested on real data; the strategies are mechanical cost studies, and the synthetic market has no structure to exploit.
@@ -135,9 +135,9 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.8_bootstrap.py` recreates the full source tree (111 files, 1840 tests). Older bootstraps (v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.9_bootstrap.py` recreates the full source tree (112 files, 1880 tests). Older bootstraps (v0.6.8, v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.8_bootstrap.py optbot
+    python3 optbot_v0.6.9_bootstrap.py optbot
     .venv/bin/optbot doctor --target paper-data   # v0.6.6: READ-ONLY readiness check; exit 1 while that target is blocked
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
