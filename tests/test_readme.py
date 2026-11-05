@@ -11,12 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.6_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.7_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
 def files():
-    spec = importlib.util.spec_from_file_location("boot066", BOOT)
+    spec = importlib.util.spec_from_file_location("boot067", BOOT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.FILES
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.6"' in files["pyproject.toml"]
+    assert 'version = "0.6.7"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1608 tests" in README
+    assert n_tests > 0 and "1764 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
@@ -228,3 +228,14 @@ def test_readme_describes_the_v066_doctor_command_and_its_limits(files):
     assert "optbot doctor" in c                                                    # the gaps section points at the one command
     assert '"doctor"' in files["src/optbot/cli.py"] and "def run_doctor" in files["src/optbot/doctor.py"]
     assert "| 39 |" in files["docs/DECISIONS.md"]
+
+
+def test_readme_describes_the_v067_provider_contract_as_a_specification_only(files):
+    for needle in ("provider contract", "docs/PROVIDER_CONTRACT.md", "optbot.data.contract", "28 rules", "a validator for one snapshot",
+                   "a reusable conformance suite", "It is a specification only", "no feed was built", "does not unblock a real-data run"):
+        assert needle in README, needle
+    c = README[README.index("## (c)"):README.index("## Getting the code")]
+    assert "provider contract" in c                                                  # listed under the known gaps, not as a capability
+    assert "def validate_provider_snapshot" in files["src/optbot/data/contract.py"] and "docs/PROVIDER_CONTRACT.md" in files
+    assert "| 40 |" in files["docs/DECISIONS.md"] and "class ProviderContractSuite" in files["tests/provider_contract.py"]
+    assert "DataProvider" not in " ".join(l for l in files["src/optbot/data/contract.py"].splitlines() if l.startswith("class "))   # no provider class added
