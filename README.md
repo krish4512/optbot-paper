@@ -2,7 +2,7 @@
 
 Paper-only options study bot (development version, not production-ready, not running anywhere). SIMULATION ONLY: no live orders, no broker SDK, no real market data in this repository, no profit claims. No edge demonstrated.
 
-This page explains, in plain English, what the bot (v0.6.2) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
+This page explains, in plain English, what the bot (v0.6.3) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
 
 ## Honesty points (read these first)
 
@@ -60,7 +60,7 @@ Plain-English glossary: an **option chain** is the list of available options wit
 
 **11. Expiry.** A position still open at expiry is settled at intrinsic value against the last made-up underlying price, and every such entry is labelled "SYNTHETIC/APPROXIMATE settlement, not official". Normally the exit rules act first (forced close one day before the last trading day), but a close can fail, for example with no valid quote.
 
-**12. Reports.** On each trading day's after-close tick a daily report is written (health, why-no-trade counts, intents and decisions, simulated fills, open positions, P&L breakdown, cost analysis, evidence status); on the last trading day of the week a weekly report as well. Reports carry the SIMULATION ONLY wording. `optbot dashboard` renders a one-file HTML view. **Rejection diagnostics (v0.6.2).** At the end of an `optbot replay` run, and for any earlier run via `optbot report --kind rejections --state-dir DIR`, the bot prints counts by rejection reason (risk rejected, strategy skipped, data check failed, scan blocked, approved but not filled, exit blocked), a breakdown by strategy and underlying, and for each rejected structure the gate that failed with its numbers (for example worst-case loss versus the per-trade cap). When a run opens nothing it adds a **Why no trades opened** section in plain English, including the cheapest candidate the strategies proposed and the smallest `capital.paper_capital_cad` that would have let it through the simulated risk gate (for the 3-day default synthetic replay: 10011, which opens a trade, while 10010 does not). These diagnostics only read what the journal already holds; they change no strategy rule, limit, default or trade, and the suggested capital is a statement about the simulation, not advice.
+**12. Reports.** On each trading day's after-close tick a daily report is written (health, why-no-trade counts, intents and decisions, simulated fills, open positions, P&L breakdown, cost analysis, evidence status); on the last trading day of the week a weekly report as well. Reports carry the SIMULATION ONLY wording. `optbot dashboard` renders a one-file HTML page (no network, nothing loaded from anywhere). **Dashboard (v0.6.3).** The page now opens with a headline state (SIMULATION ONLY, run mode, Day N of M, session status, and one of TRADING, HALTED with the reason, or REJECTING ALL CANDIDATES with the top reason), a simple pipeline (candidates seen, risk-approved, filled, open now, exited, with counts), an open-positions table (strategy, underlying, entry, latest mark and unrealized P&L, all in paper USD) and the rejection summary as bars, including the "why no trades opened" headline. It is built only from records the journal already holds, so nothing about trading changed. One limit: quote values are kept in memory only, so a mark for each separate position is not stored; with one open position the page shows its last recorded value, and with several it shows the total. **Rejection diagnostics (v0.6.2).** At the end of an `optbot replay` run, and for any earlier run via `optbot report --kind rejections --state-dir DIR`, the bot prints counts by rejection reason (risk rejected, strategy skipped, data check failed, scan blocked, approved but not filled, exit blocked), a breakdown by strategy and underlying, and for each rejected structure the gate that failed with its numbers (for example worst-case loss versus the per-trade cap). When a run opens nothing it adds a **Why no trades opened** section in plain English, including the cheapest candidate the strategies proposed and the smallest `capital.paper_capital_cad` that would have let it through the simulated risk gate (for the 3-day default synthetic replay: 10011, which opens a trade, while 10010 does not). These diagnostics only read what the journal already holds; they change no strategy rule, limit, default or trade, and the suggested capital is a statement about the simulation, not advice.
 
 ### Decision flowchart
 
@@ -132,14 +132,15 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.2_bootstrap.py` recreates the full source tree (97 files, 1346 tests). Older bootstraps (v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.3_bootstrap.py` recreates the full source tree (98 files, 1410 tests). Older bootstraps (v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.2_bootstrap.py optbot
+    python3 optbot_v0.6.3_bootstrap.py optbot
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
     .venv/bin/optbot report --kind daily --state-dir ./demo
     .venv/bin/optbot report --kind rejections --state-dir ./demo   # v0.6.2: why candidates were rejected or skipped
-    .venv/bin/optbot demo-dashboard --out dashboard.html
+    .venv/bin/optbot demo-dashboard --out dashboard.html                                # SYNTHETIC demo page, open it in a browser
+    .venv/bin/optbot dashboard --state-dir ./demo --out dash.html --total-days 24      # v0.6.3: glanceable page for a finished run
     .venv/bin/optbot walkforward-synthetic --days 40 --train-days 10 --test-days 5   # SYNTHETIC only
     .venv/bin/optbot kill --state-dir ./demo                                           # engage the kill switch (add --clear to release)
 
