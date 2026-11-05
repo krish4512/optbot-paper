@@ -11,12 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.5_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.6_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
 def files():
-    spec = importlib.util.spec_from_file_location("boot065", BOOT)
+    spec = importlib.util.spec_from_file_location("boot066", BOOT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.FILES
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.5"' in files["pyproject.toml"]
+    assert 'version = "0.6.6"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1502 tests" in README
+    assert n_tests > 0 and "1608 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
@@ -216,3 +216,15 @@ def test_readme_describes_the_v065_analytics_section_and_keeps_it_out_of_decisio
     assert "Uses **none** of the quant library to make decisions" in a and "never read by anything that decides" in a
     assert "analytics.py" in " ".join(files) and "SECTION_TITLE" in files["src/optbot/analytics.py"]
     assert "| 38 |" in files["docs/DECISIONS.md"]
+
+
+def test_readme_describes_the_v066_doctor_command_and_its_limits(files):
+    for needle in ("`optbot doctor` (v0.6.6)", "read-only (it writes nothing and never creates a directory)", "pass/warn/fail",
+                   "READY for: local synthetic replay only. BLOCKED for: real-data paper run (4 blockers), live trading (6 blockers: not authorized, no broker path).",
+                   "--target synthetic-replay|paper-data|live", "`live` is always blocked", "cannot see whether the GitHub workflow is enabled",
+                   "READY never means a strategy has an edge", "optbot doctor --target paper-data"):
+        assert needle in README, needle
+    c = README[README.index("## (c)"):README.index("## Getting the code")]
+    assert "optbot doctor" in c                                                    # the gaps section points at the one command
+    assert '"doctor"' in files["src/optbot/cli.py"] and "def run_doctor" in files["src/optbot/doctor.py"]
+    assert "| 39 |" in files["docs/DECISIONS.md"]
