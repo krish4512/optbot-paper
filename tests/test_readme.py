@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.13_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.14_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.13"' in files["pyproject.toml"]
+    assert 'version = "0.6.14"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
