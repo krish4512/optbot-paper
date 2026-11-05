@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.9_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.10_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.9"' in files["pyproject.toml"]
+    assert 'version = "0.6.10"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1880 tests" in README
+    assert n_tests > 0 and "1920 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
@@ -253,3 +253,10 @@ def test_readme_describes_the_v069_seed_robustness_and_the_flag_exists(files):
                    "byte-identical to v0.6.8"):
         assert needle in README, needle
     assert '"--seeds"' in files["src/optbot/cli.py"]
+
+
+def test_readme_describes_the_v0610_cost_sensitivity_and_the_flag_exists(files):
+    for needle in ("--cost-scenarios", "UNCONFIRMED assumption", "illustrative brackets", "bounds on real costs", "not evidence about real markets",
+                   "byte-identical to v0.6.9"):
+        assert needle in README, needle
+    assert '"--cost-scenarios"' in files["src/optbot/cli.py"]
