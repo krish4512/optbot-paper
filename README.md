@@ -2,7 +2,7 @@
 
 Paper-only options study bot (development version, not production-ready, not running anywhere). SIMULATION ONLY: no live orders, no broker SDK, no real market data in this repository, no profit claims. No edge demonstrated.
 
-This page explains, in plain English, what the bot (v0.6.1) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
+This page explains, in plain English, what the bot (v0.6.2) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
 
 ## Honesty points (read these first)
 
@@ -52,7 +52,7 @@ Plain-English glossary: an **option chain** is the list of available options wit
 **7. Sizing.** There is no sizing algorithm. Each strategy has a fixed `quantity` in config (1 structure). The risk engine can only approve or reject that size; it never shrinks it.
 
 **8. The independent risk engine checks the proposal.** It never trusts the strategy and re-checks everything, collecting all reasons it finds. In code order: kill switch; observe-only mode; sane order shape; a single underlying; underlying is in `risk.settlement_supported_underlyings` (SPX, XSP); contract root and AM/PM settlement style are present and consistent (`risk.underlying_roots`, `root_settlement_style`); symbol is in `risk.allowed_symbols`; structure is in `risk.allowed_structures` (long straddle, long strangle); expiry is not past the entry cutoff or last trading day; session state allows it; chain and each leg's quote re-validated; **worst-case loss computed** from the payoff (unbounded or unsupported means reject); no stale valuation; no active halt; daily/weekly/total loss limits; `risk.max_open_structures` (3); **per-trade risk** (worst-case loss at most `max_premium_per_trade_pct` = 10% of equity); **total open risk** (at most `max_total_premium_pct` = 30% of equity); and order-rate limits (`max_orders_per_minute` 6, `max_orders_per_day` 40). Any reason means the proposal is rejected and logged with the reasons. If it passes, the engine signs an approval (a tamper-evident HMAC token valid 60 s).
-  - *What this means at the default settings:* starting capital is CA$500, which is converted to about US$354.61, so the per-trade limit is about US$35. A one-lot synthetic straddle or strangle costs hundreds to ~2,000 USD, so in a default run **every candidate is rejected** (`per_trade_risk_exceeded`). A 3-day default replay produced 0 simulated orders. To see trades, use a larger paper balance, e.g. `--capital-cad 400000` (a 24-day synthetic replay then produces 7 simulated orders, entries and exits together).
+  - *What this means at the default settings:* starting capital is CA$500, which is converted to about US$354.61, so the per-trade limit is about US$35. A one-lot synthetic straddle or strangle costs hundreds to ~2,000 USD, so in a default run **every candidate is rejected** (`per_trade_risk_exceeded`). A 3-day default replay produced 0 simulated orders, and (new in v0.6.2) the run now says why: see step 12. To see trades, use a larger paper balance, e.g. `--capital-cad 400000` (a 24-day synthetic replay then produces 7 simulated orders, entries and exits together).
 
 **9. The paper broker "fills" the order.** It re-checks the kill switch, verifies the approval (genuine, matches this exact order, unexpired, not reused), then uses the fill model (`fill.*`, default `conservative`): buy at the ask plus `slippage_ticks` (1 tick = 0.01), sell at the bid minus the same. It never fills at the mid price. The total must be within the order's limit, otherwise nothing fills. Fees are then added per leg (`fees.*`: tiered commission with a per-leg minimum, plus clearing, regulatory and other per-contract fees). The fill is booked in an exact-decimal ledger.
 
@@ -60,7 +60,7 @@ Plain-English glossary: an **option chain** is the list of available options wit
 
 **11. Expiry.** A position still open at expiry is settled at intrinsic value against the last made-up underlying price, and every such entry is labelled "SYNTHETIC/APPROXIMATE settlement, not official". Normally the exit rules act first (forced close one day before the last trading day), but a close can fail, for example with no valid quote.
 
-**12. Reports.** On each trading day's after-close tick a daily report is written (health, why-no-trade counts, intents and decisions, simulated fills, open positions, P&L breakdown, cost analysis, evidence status); on the last trading day of the week a weekly report as well. Reports carry the SIMULATION ONLY wording. `optbot dashboard` renders a one-file HTML view.
+**12. Reports.** On each trading day's after-close tick a daily report is written (health, why-no-trade counts, intents and decisions, simulated fills, open positions, P&L breakdown, cost analysis, evidence status); on the last trading day of the week a weekly report as well. Reports carry the SIMULATION ONLY wording. `optbot dashboard` renders a one-file HTML view. **Rejection diagnostics (v0.6.2).** At the end of an `optbot replay` run, and for any earlier run via `optbot report --kind rejections --state-dir DIR`, the bot prints counts by rejection reason (risk rejected, strategy skipped, data check failed, scan blocked, approved but not filled, exit blocked), a breakdown by strategy and underlying, and for each rejected structure the gate that failed with its numbers (for example worst-case loss versus the per-trade cap). When a run opens nothing it adds a **Why no trades opened** section in plain English, including the cheapest candidate the strategies proposed and the smallest `capital.paper_capital_cad` that would have let it through the simulated risk gate (for the 3-day default synthetic replay: 10011, which opens a trade, while 10010 does not). These diagnostics only read what the journal already holds; they change no strategy rule, limit, default or trade, and the suggested capital is a statement about the simulation, not advice.
 
 ### Decision flowchart
 
@@ -106,7 +106,7 @@ flowchart TD
 
 - Uses the **shipped default config** (`config/default.toml`): CA$500 paper capital, `long_straddle` and `long_strangle` enabled with 1 lot each, `put_credit_spread` disabled, conservative fills, the risk limits and exit rules above.
 - Runs only on **synthetic** data it generates itself (or a recorded synthetic file); option prices come from the built-in formula with a fixed 0.18 volatility assumption.
-- Follows steps 1 to 12 above. At default capital the risk engine rejects every one-lot candidate, so a default run opens nothing; with a larger paper balance it opens, monitors, exits and reports on simulated trades.
+- Follows steps 1 to 12 above. At default capital the risk engine rejects every one-lot candidate, so a default run opens nothing (and its end-of-run Rejection diagnostics explain why); with a larger paper balance it opens, monitors, exits and reports on simulated trades.
 - Uses **none** of the quant library to make decisions: Black-Scholes, Kelly, VaR, Sharpe and the walk-forward harness are not called by the default pipeline.
 
 ## (b) Optional, research-only capabilities (evaluation tools)
@@ -132,12 +132,13 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.1_bootstrap.py` recreates the full source tree (95 files, 1279 tests). Older bootstraps (v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.2_bootstrap.py` recreates the full source tree (97 files, 1346 tests). Older bootstraps (v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.1_bootstrap.py optbot
+    python3 optbot_v0.6.2_bootstrap.py optbot
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
     .venv/bin/optbot report --kind daily --state-dir ./demo
+    .venv/bin/optbot report --kind rejections --state-dir ./demo   # v0.6.2: why candidates were rejected or skipped
     .venv/bin/optbot demo-dashboard --out dashboard.html
     .venv/bin/optbot walkforward-synthetic --days 40 --train-days 10 --test-days 5   # SYNTHETIC only
     .venv/bin/optbot kill --state-dir ./demo                                           # engage the kill switch (add --clear to release)
