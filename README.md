@@ -134,7 +134,7 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.7_bootstrap.py` recreates the full source tree (108 files, 1762 tests). Older bootstraps (v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.7_bootstrap.py` recreates the full source tree (108 files, 1764 tests). Older bootstraps (v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
     python3 optbot_v0.6.7_bootstrap.py optbot
     .venv/bin/optbot doctor --target paper-data   # v0.6.6: READ-ONLY readiness check; exit 1 while that target is blocked
