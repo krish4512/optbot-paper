@@ -2,7 +2,7 @@
 
 Paper-only options study bot (development version, not production-ready, not running anywhere). SIMULATION ONLY: no live orders, no broker SDK, no real market data in this repository, no profit claims. No edge demonstrated.
 
-This page explains, in plain English, what the bot (v0.6.4) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
+This page explains, in plain English, what the bot (v0.6.5) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
 
 ## Honesty points (read these first)
 
@@ -107,15 +107,15 @@ flowchart TD
 - Uses the **shipped default config** (`config/default.toml`): CA$500 paper capital, `long_straddle` and `long_strangle` enabled with 1 lot each, `put_credit_spread` disabled, conservative fills, the risk limits and exit rules above.
 - Runs only on **synthetic** data it generates itself (or a recorded synthetic file); option prices come from the built-in formula with a fixed 0.18 volatility assumption.
 - Follows steps 1 to 12 above. At default capital the risk engine rejects every one-lot candidate, so a default run opens nothing (and its end-of-run Rejection diagnostics explain why); with a larger paper balance it opens, monitors, exits and reports on simulated trades.
-- Uses **none** of the quant library to make decisions: Black-Scholes, Kelly, VaR, Sharpe and the walk-forward harness are not called by the default pipeline.
+- Uses **none** of the quant library to make decisions: Black-Scholes, Kelly, VaR, Sharpe and the walk-forward harness play no part in the default decision pipeline (strategy choice, risk checks, sizing, fills, exits). Since v0.6.5 the reporting layer does call some of that maths to print an informational Analytics section (see (b)); it is never read by anything that decides.
 
 ## (b) Optional, research-only capabilities (evaluation tools)
 
-New in v0.6.0 (units wording clarified in v0.6.1), in `src/optbot/quant/`. Standard-library maths only, no network, no new dependency. They are **evaluation tools, not part of the default decision path**.
+New in v0.6.0 (units wording clarified in v0.6.1), in `src/optbot/quant/`. Standard-library maths only, no network, no new dependency. They are **evaluation tools, not part of the default decision path**. **Informational analytics (v0.6.5):** the end of an `optbot replay` run and every weekly report now carry an "Analytics (informational only - never used for any trading decision)" section: the Greeks (delta, gamma, theta, vega) of each open position from the Black-Scholes code at the configured volatility, which is a config assumption (UNCONFIRMED), not market data; and statistics of the daily paper-equity curve from the journal (total return, max drawdown, Sharpe, historical VaR), in paper USD. A position that cannot be valued (stale or missing mark, no synthetic spot for that date, at or past expiry) shows `unknown`, never zero. It states in one line that the numbers describe a synthetic simulation and are not evidence of edge or profitability. It is computed at report time from the journal, adds no journal event, is appended to weekly reports (daily reports are unchanged), and only the reporting and CLI layers import it.
 
 - `stats.py`: returns, mean/variance, standard error, autocorrelation, Sharpe ratio and its t-statistic (per-period Sharpe x sqrt(N), assumes iid returns, not corrected for multiple testing).
 - `blackscholes.py`: prices, Greeks (delta, gamma, theta, vega, rho), put-call parity helper, implied volatility by bisection.
-- `risk.py`: Kelly and half-Kelly, historical VaR and expected shortfall, max drawdown. **Nothing in the bot uses these for sizing or risk control**; sizing is fixed in config and risk is the engine in step 8.
+- `risk.py`: Kelly and half-Kelly, historical VaR and expected shortfall, max drawdown. **Nothing in the bot uses these for sizing or risk control** (they only feed the informational Analytics section above); sizing is fixed in config and risk is the engine in step 8.
 - `backtest.py` (`optbot walkforward-synthetic`): cuts a seeded synthetic series into sequential train/test windows and runs the existing strategies through the existing risk engine, paper broker and fill model, reporting trades, P&L, Sharpe with t-statistic and max drawdown per window, all labelled SYNTHETIC. Nothing is fitted; on a driftless random walk the results are noise plus cost drag.
 - `pricing.py` (**off by default**, `quant.bs_pricing_enabled = true` to enable): prices the synthetic chain with Black-Scholes using the *assumed* volatility `quant.bs_implied_vol`. This changes only the made-up prices the strategies are shown; the strategy rules, risk checks, sizing, fills and exits are the same code. It also writes, after a fill, a `quant_analytics` journal event and a daily-report section with premium, strike -/+ premium breakevens (long straddle/strangle) and position Greeks. These are descriptive; they do not feed any decision.
 
@@ -132,9 +132,9 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.4_bootstrap.py` recreates the full source tree (100 files, 1450 tests). Older bootstraps (v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.5_bootstrap.py` recreates the full source tree (102 files, 1502 tests). Older bootstraps (v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.4_bootstrap.py optbot
+    python3 optbot_v0.6.5_bootstrap.py optbot
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
     .venv/bin/optbot report --kind daily --state-dir ./demo
