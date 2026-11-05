@@ -11,12 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.3_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.4_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
 def files():
-    spec = importlib.util.spec_from_file_location("boot063", BOOT)
+    spec = importlib.util.spec_from_file_location("boot064", BOOT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.FILES
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.3"' in files["pyproject.toml"]
+    assert 'version = "0.6.4"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,11 +188,20 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1410 tests" in README
+    assert n_tests > 0 and "1450 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
     for needle in ("Dashboard (v0.6.3)", "headline state", "REJECTING ALL CANDIDATES", "pipeline", "open-positions table",
-                   "paper USD", "a mark for each separate position is not stored", "--total-days"):
+                   "paper USD", "--total-days"):
         assert needle in README, needle
     assert '"--total-days"' in files["src/optbot/cli.py"] and "_render_top" in files["src/optbot/dashboard.py"]
+
+
+def test_readme_describes_the_v064_per_position_marks_and_the_digest_change(files):
+    for needle in ("Per-position marks (v0.6.4)", "position_marks", "journal schema 2", "raw journal and report digests changed once",
+                   "byte-identical to before", "never zero", "valued at cost"):
+        assert needle in README, needle
+    assert "a mark for each separate position is not stored" not in README         # the v0.6.3 limitation is resolved
+    assert "position_marks" in files["src/optbot/posmarks.py"] and "JOURNAL_SCHEMA_VERSION = 2" in files["src/optbot/posmarks.py"]
+    assert "| 37 |" in files["docs/DECISIONS.md"]
