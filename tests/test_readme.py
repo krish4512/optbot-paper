@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.7_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.8_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.7"' in files["pyproject.toml"]
+    assert 'version = "0.6.8"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1764 tests" in README
+    assert n_tests > 0 and "1840 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
@@ -239,3 +239,10 @@ def test_readme_describes_the_v067_provider_contract_as_a_specification_only(fil
     assert "def validate_provider_snapshot" in files["src/optbot/data/contract.py"] and "docs/PROVIDER_CONTRACT.md" in files
     assert "| 40 |" in files["docs/DECISIONS.md"] and "class ProviderContractSuite" in files["tests/provider_contract.py"]
     assert "DataProvider" not in " ".join(l for l in files["src/optbot/data/contract.py"].splitlines() if l.startswith("class "))   # no provider class added
+
+
+def test_readme_describes_the_v068_regime_comparison_and_the_command_flag_exists(files):
+    for needle in ("Multi-regime comparison (v0.6.8", "--regimes all", "invented", "not evidence about real markets",
+                   "no edge has been demonstrated", "cost-study gate", "trending-up", "range-bound", "vol-spike"):
+        assert needle in README, needle
+    assert '"--regimes"' in files["src/optbot/cli.py"] and "synthetic_regimes.py" in " ".join(files)
