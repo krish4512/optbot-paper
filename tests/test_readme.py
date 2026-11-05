@@ -11,12 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 FLAT = " ".join(README.split())
-BOOT = ROOT / "optbot_v0.6.4_bootstrap.py"
+BOOT = ROOT / "optbot_v0.6.5_bootstrap.py"
 
 
 @pytest.fixture(scope="module")
 def files():
-    spec = importlib.util.spec_from_file_location("boot064", BOOT)
+    spec = importlib.util.spec_from_file_location("boot065", BOOT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.FILES
@@ -163,7 +163,7 @@ def test_readme_numbers_match_default_config(files):
 def test_readme_file_and_test_counts_match_the_bootstrap(files):
     assert f"({len(files)} files, " in README
     assert BOOT.name in README
-    assert 'version = "0.6.4"' in files["pyproject.toml"]
+    assert 'version = "0.6.5"' in files["pyproject.toml"]
 
 
 def test_readme_names_only_cli_commands_that_exist(files):
@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "1450 tests" in README
+    assert n_tests > 0 and "1502 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
@@ -205,3 +205,14 @@ def test_readme_describes_the_v064_per_position_marks_and_the_digest_change(file
     assert "a mark for each separate position is not stored" not in README         # the v0.6.3 limitation is resolved
     assert "position_marks" in files["src/optbot/posmarks.py"] and "JOURNAL_SCHEMA_VERSION = 2" in files["src/optbot/posmarks.py"]
     assert "| 37 |" in files["docs/DECISIONS.md"]
+
+
+def test_readme_describes_the_v065_analytics_section_and_keeps_it_out_of_decisions(files):
+    for needle in ("Informational analytics (v0.6.5)", "Analytics (informational only - never used for any trading decision)",
+                   "config assumption (UNCONFIRMED), not market data", "`unknown`, never zero", "not evidence of edge or profitability",
+                   "adds no journal event", "appended to weekly reports", "only the reporting and CLI layers import it"):
+        assert needle in README, needle
+    a = README[README.index("## (a)"):README.index("## (b)")]
+    assert "Uses **none** of the quant library to make decisions" in a and "never read by anything that decides" in a
+    assert "analytics.py" in " ".join(files) and "SECTION_TITLE" in files["src/optbot/analytics.py"]
+    assert "| 38 |" in files["docs/DECISIONS.md"]
