@@ -2,7 +2,7 @@
 
 Paper-only options study bot (development version, not production-ready, not running anywhere). SIMULATION ONLY: no live orders, no broker SDK, no real market data in this repository, no profit claims. No edge demonstrated.
 
-This page explains, in plain English, what the bot (v0.6.24) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
+This page explains, in plain English, what the bot (v0.6.25) really does, in the order it really does it. Everything below was checked against the source code; where something is *not* built, it says so.
 
 ## Honesty points (read these first)
 
@@ -135,9 +135,9 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.24_bootstrap.py` recreates the full source tree (132 files, 2495 tests). Older bootstraps (v0.6.23, v0.6.22, v0.6.21, v0.6.20, v0.6.19, v0.6.18, v0.6.17, v0.6.16, v0.6.15, v0.6.14, v0.6.13, v0.6.12, v0.6.11, v0.6.10, v0.6.9, v0.6.8, v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.25_bootstrap.py` recreates the full source tree (133 files, 2499 tests). Older bootstraps (v0.6.24, v0.6.23, v0.6.22, v0.6.21, v0.6.20, v0.6.19, v0.6.18, v0.6.17, v0.6.16, v0.6.15, v0.6.14, v0.6.13, v0.6.12, v0.6.11, v0.6.10, v0.6.9, v0.6.8, v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.24_bootstrap.py optbot
+    python3 optbot_v0.6.25_bootstrap.py optbot
     .venv/bin/optbot doctor --target paper-data   # v0.6.6: READ-ONLY readiness check; exit 1 while that target is blocked
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
