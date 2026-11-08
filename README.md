@@ -135,9 +135,9 @@ With the shipped config none of the optional pricing runs, and chains, journal, 
 
 ## Getting the code
 
-`optbot_v0.6.42_bootstrap.py` recreates the full source tree (151 files, 2797 tests). Older bootstraps (v0.6.41, v0.6.40, v0.6.39, v0.6.38, v0.6.37, v0.6.36, v0.6.35, v0.6.34, v0.6.33, v0.6.32, v0.6.31, v0.6.30, v0.6.29, v0.6.28, v0.6.27, v0.6.26, v0.6.25, v0.6.24, v0.6.23, v0.6.22, v0.6.21, v0.6.20, v0.6.19, v0.6.18, v0.6.17, v0.6.16, v0.6.15, v0.6.14, v0.6.13, v0.6.12, v0.6.11, v0.6.10, v0.6.9, v0.6.8, v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
+`optbot_v0.6.43_bootstrap.py` recreates the full source tree (152 files, 2888 tests). Older bootstraps (v0.6.42, v0.6.41, v0.6.40, v0.6.39, v0.6.38, v0.6.37, v0.6.36, v0.6.35, v0.6.34, v0.6.33, v0.6.32, v0.6.31, v0.6.30, v0.6.29, v0.6.28, v0.6.27, v0.6.26, v0.6.25, v0.6.24, v0.6.23, v0.6.22, v0.6.21, v0.6.20, v0.6.19, v0.6.18, v0.6.17, v0.6.16, v0.6.15, v0.6.14, v0.6.13, v0.6.12, v0.6.11, v0.6.10, v0.6.9, v0.6.8, v0.6.7, v0.6.6, v0.6.5, v0.6.4, v0.6.3, v0.6.2, v0.6.1, v0.6.0, v0.5.2, v0.5.1, v0.5, v0.4.1) are kept for reference only and are unchanged. The `README.md` generated inside the tree is the detailed technical changelog; this page is the plain-English overview.
 
-    python3 optbot_v0.6.42_bootstrap.py optbot
+    python3 optbot_v0.6.43_bootstrap.py optbot
     .venv/bin/optbot doctor --target paper-data   # v0.6.6: READ-ONLY readiness check; exit 1 while that target is blocked
     cd optbot && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/pytest
     .venv/bin/optbot replay --synthetic --days 24 --capital-cad 400000 --state-dir ./demo   # SYNTHETIC; larger paper balance so trades appear
