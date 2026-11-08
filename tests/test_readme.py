@@ -188,7 +188,7 @@ def test_readme_describes_the_rejection_diagnostics_and_the_command_exists(files
 
 def test_readme_states_the_test_count_and_the_bootstrap_ships_tests(files):
     n_tests = sum(len(re.findall(r"^\s*def test_", v, re.M)) for k, v in files.items() if k.startswith("tests/"))
-    assert n_tests > 0 and "2923 tests" in README
+    assert n_tests > 0 and "2924 tests" in README
 
 
 def test_readme_describes_the_v063_dashboard_and_its_limit(files):
