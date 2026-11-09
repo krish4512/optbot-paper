@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>optbot mission control (prototype, simulation only)</title>
 <!-- PROTOTYPE. One self-contained file: no network, no external fonts, no framework. It is a STATIC SNAPSHOT of a
-     finished SYNTHETIC replay. It is not connected to anything. Nothing in it updates except the snapshot age (computed
-     by your browser from the capture time) and the globe's rotation, which is a visual effect only: it does not mean
-     anything is being computed, scanned or watched. The data block is written by build_snapshot.py. -->
+     finished SYNTHETIC replay. It is not connected to anything. Two things follow your browser's clock: the snapshot age
+     (computed from the capture time) and the globe's rotation, which is decoration only and does not mean anything is
+     being computed, scanned or watched. The avatar and the activity colours follow the RECORDED run status, never the clock.
+     The data block is written by build_snapshot.py. -->
 <style>
 :root{
   --bg:#05080c; --panel:#0a1118; --panel2:#0d161f; --line:rgba(125,205,225,.16); --line2:rgba(125,205,225,.30);
@@ -26,7 +27,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1.8fr) auto minmax(0,1fr);gap:10px;padding:12px 14px}
 
 /* top bar */
-.top{display:flex;align-items:center;gap:14px;min-width:0}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;min-width:0}
 .brand{display:flex;align-items:baseline;gap:10px;font:700 15px/1 var(--sans);letter-spacing:.22em;white-space:nowrap}
 .brand{align-items:center}
 .bot{width:30px;height:30px;flex:none;color:var(--mut)}
@@ -38,14 +39,13 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 @media (prefers-reduced-motion:no-preference){.bot.working{animation:bob 1.2s ease-in-out infinite}.bot.working .eye{animation:blink 2.6s infinite}}
 .brand span{font-weight:500;color:var(--mut);letter-spacing:.2em}
 .brand em{font-style:normal}
-.flags{display:flex;gap:6px;flex-wrap:nowrap;min-width:0}
+.flags{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
 .flag{font:600 11px/1 var(--sans);letter-spacing:.11em;text-transform:uppercase;padding:5px 8px;border:1px solid;border-radius:2px;white-space:nowrap}
 .flag.sim{color:var(--amb);border-color:rgba(232,184,90,.55);background:rgba(232,184,90,.07)}
 .flag.syn{color:var(--amb);border-color:rgba(232,184,90,.35)}
 .flag.hist{color:var(--cy);border-color:rgba(85,217,230,.4)}
 .flag .short,.clock .short{display:none}
-@media (max-width:1500px){.flag .long{display:none} .flag .short{display:inline}}
-.clock{margin-left:auto;text-align:right;font:12px/1.5 var(--mono);color:var(--mut);white-space:nowrap}
+.clock{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:0 26px;font:12px/1.5 var(--mono);color:var(--mut);min-width:0}
 .clock b{color:var(--fg);font-weight:500}
 .clock .simcal b{color:var(--amb)}
 
@@ -101,7 +101,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .c-seen{color:var(--amb)} .c-approved{color:var(--grn)} .c-filled{color:var(--cy)} .c-open{color:var(--cy)} .c-exited{color:var(--mut)}
 /* statistics strip */
 .stats{display:flex;border:1px solid var(--line);background:var(--panel);min-width:0}
-.stats div{flex:1 1 auto;padding:6px 12px;min-width:0;white-space:nowrap}
+.stats div{flex:1 1 auto;padding:6px 12px;min-width:0;overflow-wrap:anywhere}
 .stats div+div{border-left:1px solid var(--line)}
 .stats span{display:block;font:600 10.5px/1.3 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--mut)}
 .stats b{font:600 13px/1.3 var(--mono)}
@@ -109,12 +109,12 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 /* globe */
 .stagewrap{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .stage{position:relative;flex:1 1 0;min-height:0;overflow:hidden}
-.huds{position:absolute;inset:0;pointer-events:none;z-index:3}
+.huds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line);flex:none}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.hud{position:absolute;padding:8px 12px;pointer-events:none}
-.hud b{display:block;font:600 20px/1.1 var(--mono)}
+.hud{padding:6px 12px;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hud+.hud{border-left:1px solid var(--line)}
+.hud b{font:600 19px/1.1 var(--mono);white-space:nowrap}
 .hud>span{font:600 10.5px/1.3 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--mut)}
-.hud.tl{left:0;top:0} .hud.tr{right:0;top:0;text-align:right} .hud.bl{left:0;bottom:0} .hud.br{right:0;bottom:0;text-align:right}
 .node{position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;display:grid;place-items:center}
 .node i{display:block;width:11px;height:11px;border:1.5px solid currentColor;border-radius:50%;background:var(--bg)}
 .node.trade i{border-radius:0;transform:rotate(45deg);width:10px;height:10px}
@@ -122,15 +122,15 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .node.back{opacity:.38}
 .node[aria-pressed="true"] i{box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px currentColor}
 .node span{position:absolute;left:24px;top:50%;transform:translateY(-50%);font:600 11px/1 var(--mono);white-space:nowrap;color:var(--fg);pointer-events:none;text-shadow:0 0 4px var(--bg),0 0 4px var(--bg)}
+.node span{display:none}
+.node.lab span{display:block}
 .node.lft span{left:auto;right:24px}
-.node.back span,.node.trade span{display:none}
-.node.trade[aria-pressed="true"] span{display:block}
 .n-no{color:var(--mut)} .n-prop{color:var(--amb)} .n-yes{color:var(--grn)} .n-rej{color:var(--red)} .n-open{color:var(--cy)} .n-closed{color:var(--mut)}
 .readout{flex:none;border-top:1px solid var(--line);padding:7px 12px 8px;font:12px/1.45 var(--mono);color:var(--mut);min-height:62px;display:flex;gap:10px;align-items:flex-start}
 .readout .txt{flex:1;min-width:0;overflow-wrap:anywhere}
 .readout .short{display:none}
 .readout b{color:var(--fg);font-weight:600}
-.readout .acts{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.readout .acts{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end;max-width:45%}
 .led{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;margin-right:7px;vertical-align:-1px}
 .st-run .led{background:currentColor}
 .st-stop{color:var(--amb)} .st-run{color:var(--grn)} .st-never{color:var(--mut)}
@@ -155,9 +155,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   .bot{width:26px;height:26px}
   .top{flex-wrap:wrap;gap:6px 10px}
   .brand{font-size:13px}
-  .clock{margin-left:0;text-align:left;width:100%;font-size:11.5px;line-height:1.45;white-space:normal}
+  .clock{font-size:11.5px;line-height:1.45}
   .flag{font-size:10.5px;padding:4px 5px;letter-spacing:.02em} .flags{gap:5px}
-  .flag .long{display:none} .flag .short{display:inline}
   .tabs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--panel)}
   .tabs button{padding:10px 4px;font:600 11px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--mut);border-bottom:2px solid transparent}
   .tabs button[aria-selected="true"]{color:var(--cy);border-bottom-color:var(--cy);background:rgba(85,217,230,.06)}
@@ -169,12 +168,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   .ph .note{margin-left:0;text-align:left}
   .kv{padding:6px 10px} .row{padding:7px 10px}
   .pg{width:40px;height:28px}
-  .huds{position:static;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line);flex:none}
-  .hud,.hud.tr,.hud.br{position:static;padding:5px 8px;text-align:left} .hud+.hud{border-left:1px solid var(--line)} .hud b{font-size:16px} .hud .long{display:none}
+  .hud{padding:5px 8px} .hud b{font-size:16px} .hud .long{display:none}
   .hud>span{letter-spacing:.06em}
-  .readout{padding:6px 10px 7px;min-height:66px} .readout .long{display:none} .readout .short{display:inline}
-  .clock .long{display:none} .clock .short{display:inline}
-  .flags{flex-wrap:wrap}
+  .readout{padding:6px 10px 7px;min-height:58px} .readout .long{display:none} .readout .short{display:inline}
+  #p-globe .ph{flex-wrap:wrap;gap:6px 8px}
+  .clock .long,.flag .long{display:none} .clock .short,.flag .short{display:inline}
   #to-records:not([hidden]){display:inline-block}
   .log{font-size:11.5px}
   .log li{grid-template-columns:78px 56px minmax(0,1fr);gap:6px;padding:0 8px}
@@ -209,13 +207,14 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
     <section class="panel" id="p-globe" aria-labelledby="h-globe">
       <div class="ph"><h2 id="h-globe">Overview</h2><span class="note" id="globe-state"></span>
-        <button class="btn" id="spin" type="button" aria-pressed="false">Pause rotation</button></div>
+        <button class="btn" id="spin" type="button" aria-pressed="false">Pause rotation</button>
+        <button class="pg" id="node-prev" type="button" aria-label="Select the previous node">‹</button><button class="pg" id="node-next" type="button" aria-label="Select the next node">›</button></div>
       <div class="stagewrap">
         <div class="huds">
-          <div class="hud tl"><b id="hud-taken"></b><span><span class="long">Trades </span>taken</span></div>
+          <div class="hud tl"><b id="hud-taken"></b><span>Taken</span></div>
           <div class="hud tr"><b id="hud-open" class="cy"></b><span>Open</span></div>
           <div class="hud bl"><b id="hud-closed"></b><span>Closed</span></div>
-          <div class="hud br"><b id="hud-prop"></b><span>Proposed<span class="long"> · last tick</span></span></div>
+          <div class="hud br" title="Strategies that proposed a trade at the last evaluated tick, of those evaluated"><b id="hud-prop"></b><span>Proposed</span></div>
         </div>
         <div class="stage" id="stage">
           <canvas id="globe" aria-hidden="true"></canvas>
@@ -3253,7 +3252,7 @@ function draw(){
   var dpr = window.devicePixelRatio || 1;
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(hh * dpr)){ canvas.width = Math.round(w * dpr); canvas.height = Math.round(hh * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, hh);
-  var R = Math.max(40, Math.min(w * 0.36, hh * 0.44)), cx = w / 2, cy = hh / 2, live = S.run.status === "RUNNING";
+  var R = Math.max(16, Math.min(w * 0.36, hh / 2 - 18)), cx = w / 2, cy = hh / 2, live = S.run.status === "RUNNING";
   var g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
   g.addColorStop(0, live ? "rgba(47,191,174,.20)" : "rgba(138,158,172,.13)"); g.addColorStop(1, "rgba(5,8,12,.05)");
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fill();
@@ -3279,7 +3278,18 @@ function draw(){
   NODES.forEach(function(n){
     var p = proj(n.lat, n.lon, R, cx, cy);
     n.el.style.transform = "translate(" + p[0].toFixed(1) + "px," + p[1].toFixed(1) + "px)";
-    n.el.classList.toggle("back", p[2] <= 0); n.el.classList.toggle("lft", p[0] > cx + 4); n.el.style.zIndex = p[2] > 0 ? 2 : 1;
+    n.el.classList.toggle("back", p[2] <= 0); n.el.style.zIndex = n === selected ? 4 : (p[2] > 0 ? 2 : 1); n.p = p;
+  });
+  // labels: the selected node first, then the front strategies; one is drawn only if its box is clear of every node, label, corner figure and edge
+  var sr = stage.getBoundingClientRect(), taken = NODES.map(function(n){ return [n.p[0] - 9, n.p[1] - 9, n.p[0] + 9, n.p[1] + 9]; });
+  Array.prototype.forEach.call(document.querySelectorAll(".huds .hud"), function(e){ var r = e.getBoundingClientRect(); if (r.bottom > sr.top && r.top < sr.bottom) taken.push([r.left - sr.left, r.top - sr.top, r.right - sr.left, r.bottom - sr.top]); });
+  function clear(b){ if (b[0] < 2 || b[2] > w - 2 || b[1] < 2 || b[3] > hh - 2) return false; for (var i = 0; i < taken.length; i++) if (b[0] < taken[i][2] && b[2] > taken[i][0] && b[1] < taken[i][3] && b[3] > taken[i][1]) return false; return true; }
+  ctx.font = "600 11px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
+  NODES.slice().sort(function(a, b){ return (b === selected) - (a === selected) || b.p[2] - a.p[2]; }).forEach(function(n){
+    var want = n === selected || (n.kind === "strategy" && n.p[2] > 0), lw = Math.ceil(ctx.measureText(n.label).width) + 2, x = n.p[0], y = n.p[1], side = null;
+    var right = [x + 10, y - 8, x + 10 + lw, y + 8], left = [x - 10 - lw, y - 8, x - 10, y + 8], order = x > cx ? [right, left] : [left, right];
+    if (want) for (var i = 0; i < 2 && !side; i++) if (clear(order[i])){ side = order[i]; taken.push(side); }
+    n.el.classList.toggle("lab", !!side); n.el.classList.toggle("lft", side === left);
   });
 }
 var lastT = 0;
@@ -3295,20 +3305,21 @@ requestAnimationFrame(frame);
 if (window.ResizeObserver) new ResizeObserver(function(){ draw(); }).observe(stage);
 
 function stageTrades(k){ return k === "open" ? trades.filter(function(t){ return t.status === "open"; }) : k === "exited" ? trades.filter(function(t){ return t.status !== "open"; }) : k === "filled" ? trades : []; }
-var LEGEND = "● strategy, coloured by its last evaluation   ◆ open trade (upper ring)   ◇ closed trade (lower ring). Positions are a diagram, not geography or exposure. Rotation is visual only.";
+var LEGEND = "Circles are strategies, coloured by their last evaluation. Filled diamonds are open trades (upper ring), hollow diamonds are closed trades (lower ring). Positions are a diagram, not geography or exposure. Rotation is visual only. The arrow buttons step through every node; a name is drawn only where it fits.";
 function select(n){
   selected = n; NODES.forEach(function(x){ x.el.setAttribute("aria-pressed", x === n ? "true" : "false"); });
   var txt = $("readout-txt"); txt.textContent = "";
   $("clear").hidden = !n; $("to-records").hidden = !n; recSeg.btn.sel.hidden = !n; logSeg.btn.link.hidden = !n;
+  txt.removeAttribute("title");
   if (!n){
-    add(txt, h("b", null, STRAT.length + " strategies · " + trades.length + " trades recorded. "), document.createTextNode("Select a node for its recorded details. "), h("span", "long", LEGEND),
-        h("span", "short", "● strategy ◆ open ◇ closed. A diagram, not geography. Rotation is visual only."));
+    add(txt, h("b", null, STRAT.length + " strategies · " + trades.length + " trades recorded. "), document.createTextNode("Select a node, or step with ‹ ›. ● strategy ◆ open trade ◇ closed trade. A diagram, not geography; rotation is visual only."));
+    txt.title = LEGEND;
     if (recSeg.current === "sel") recSeg.pick("trades"); if (logSeg.current === "link") logSeg.pick("key");
     pipePager.draw(); draw(); return;
   }
   if (n.kind === "stage"){
     var k = n.key, opens = decisions.filter(function(d){ return d.action === "open"; }), st = stageTrades(k), sids = st.map(function(t){ return t.sid; });
-    add(txt, h("b", null, P[k].label + ": " + cnt(k)), document.createTextNode(" · " + P[k].sub + " · whole run, recorded"));
+    add(txt, h("b", null, P[k].label + ": " + cnt(k)), document.createTextNode(" · " + P[k].sub), h("span", "long", " · whole run, recorded"));
     selItems = [{kind: "head", v: "Stage: " + P[k].label + " (" + cnt(k) + ")"}].concat(
       k === "seen" || k === "approved" ? opens.map(function(d){ return {kind: "risk", v: d}; }) : st.map(function(t){ return {kind: "trade", v: t}; }));
     logLinked = LOG.filter(function(e){ return k === "seen" ? e.k === "PROPOSE" && e.m.indexOf("exit_manager") !== 0 : k === "approved" ? e.k === "RISK" && / open: /.test(e.m) : k === "filled" ? e.k === "FILL" && / open: /.test(e.m)
@@ -3319,14 +3330,15 @@ function select(n){
   else if (n.kind === "strategy"){
     var s = n.s, mine = trades.filter(function(t){ return t.strategy === s.name; });
     add(txt, h("b", null, s.name), document.createTextNode(" · last evaluation " + (s.last ? s.last.outcome + (s.last.code ? " [" + s.last.code + "]" : "") : "not recorded") +
-        " · whole run: " + s.proposed + " proposed, " + s.trades + " traded (" + s.open + " open, " + s.closed + " closed), " + num(s.skips) + " skips"));
+        " · " + s.trades + " traded (" + s.open + " open, " + s.closed + " closed)"), h("span", "long", " · whole run: " + s.proposed + " proposed, " + num(s.skips) + " skips"));
     selItems = [{kind: "head", v: "Strategy " + s.name}].concat(s.last ? [{kind: "tick", v: s.last}] : [],
       [{kind: "kv", v: ["Proposed, whole run", String(s.proposed)]}, {kind: "kv", v: ["Trades open / closed", s.open + " / " + s.closed]}, {kind: "kv", v: ["Skips, whole run", num(s.skips)]}],
       mine.map(function(t){ return {kind: "trade", v: t}; }), decisions.filter(function(d){ return d.owner === s.name; }).map(function(d){ return {kind: "risk", v: d}; }));
     logLinked = LOG.filter(function(e){ return e.s === s.name; });
   } else {
     var t = n.t;
-    add(txt, h("b", null, t.strategy + " · " + (n.open ? "open" : "closed") + " trade"), document.createTextNode(" · opened " + hm(t.opened_local) + " (sim.) · " + (n.open ? "open, not revalued here" : val(t.status_text) + ", " + val(t.result))));
+    add(txt, h("b", null, t.strategy + " · " + (n.open ? "open" : "closed") + " trade"), h("span", "long", " · opened " + hm(t.opened_local) + " (sim.)"), h("span", "short", " · " + hm(t.opened_local).slice(5, 10)),
+        document.createTextNode(" · " + (n.open ? "open, not revalued here" : val(t.status_text).replace(/^closed /, "") + ", " + val(t.result))));
     selItems = [{kind: "head", v: "Trade " + t.sid}, {kind: "trade", v: t}].concat(decisions.filter(function(d){ return d.sid === t.sid; }).map(function(d){ return {kind: "risk", v: d}; }));
     logLinked = LOG.filter(function(e){ return e.sid === t.sid; });
   }
@@ -3335,6 +3347,8 @@ function select(n){
   if (n.kind === "stage" && mq.matches) show(2);                  // small screens: the stage cards are on another tab, so go to its records
 }
 $("clear").onclick = function(){ select(null); };
+function step(d){ var i = selected && selected.el ? NODES.indexOf(selected) : (d > 0 ? -1 : 0); select(NODES[(i + d + NODES.length) % NODES.length]); }
+$("node-prev").onclick = function(){ step(-1); }; $("node-next").onclick = function(){ step(1); };
 
 /* ---------- small-screen tabs: one panel at a time, never a scroll ---------- */
 var mq = window.matchMedia("(max-width:860px)"), tabs = Array.prototype.slice.call($("tabs").children), current = 0;

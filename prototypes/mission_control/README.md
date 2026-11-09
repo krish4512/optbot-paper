@@ -37,10 +37,14 @@ One fixed screen, no scrolling anywhere. Lists that do not fit are paged (‹ �
 
 ## Motion, and what it does not mean
 
-- The globe's rotation is a visual effect only (3 degrees per second). It does not mean anything is computed, scanned or
-  watched. It can be paused, it stops when a node is selected, and it is off when the system asks for reduced motion.
+- The globe's rotation is a visual effect only (3 degrees per second of elapsed browser time). It does not mean anything is
+  computed, scanned or watched. It can be paused, it stops when a node is selected, and it is off when the system asks for
+  reduced motion.
+- A node's name is drawn only where it fits without touching another name, node, corner figure or the edge; the ‹ › buttons
+  under the globe step through every node, so nodes on the far side or under another node are still reachable.
 - The sphere is grey and the header says IDLE because the recorded run status is STOPPED. It takes colour, and the bot avatar
-  moves, only if the recorded status is RUNNING. Elapsed wall time never animates anything.
+  moves, only if the recorded status is RUNNING. The avatar and the activity colours never follow the clock; the decorative
+  rotation and the snapshot age are the only things that advance with time.
 - There are no pulses, no scanning, no invented activity. Replay playback is not implemented.
 
 ## Where every value comes from
@@ -72,11 +76,23 @@ mark events are not in the file, and the log footer says so.
 
 ## Checked, and limits
 
-Checked in headless Chromium (this fixture only) at 1280x800, 1280x720, 1440x900, 390x844 and 390x700: the document and every
-panel have scroll size equal to client size, no element is outside the viewport, no text is cut off, every page of every list
-adds up to its item count, and selecting each of the 8 globe nodes keeps the read-out, the selection list and the linked log
-within their boxes. No network request is made. Smallest text is 10.5 px (labels); body text is 11.5 to 13 px.
+Checked in headless Chromium (this fixture only) at 1280x800, 1280x720, 1440x900, 390x844 and 390x700, once with the default
+fonts and once with a deliberately wider font (DejaVu) forced in, because fonts differ between machines:
+
+- the document, the body and every panel, header, footer, card, row and read-out have scroll size within client size; no
+  element is outside the viewport; no text is cut off;
+- **overlap** (the first version did not test this, and its one-line header overlapped on a reviewer's machine): the header
+  items, the top-level regions, the panels, the statistics cells, the buttons in each panel header and every drawn node name
+  against every node, figure and other name are checked pairwise for intersecting boxes. The header now has a deliberate second
+  row for the two clocks and nothing in it is forced onto one line;
+- every page of every list adds up to its item count (trades 4, last tick 4, risk decisions 7, skip reasons 3, status rows 25,
+  key events 72, kept log lines 301, stages 5);
+- the ‹ › stepper reaches all 8 nodes, and each selected state is clean (no overflow, cut-off or overlap; its selection list and
+  linked log fully paged).
+
+No network request is made. Smallest text is 10.5 px (labels); body text is 11.5 to 13 px. Screens were also looked at by eye
+at 1280x800, 1280x720 and 390x700 (idle and with a node selected).
 
 Not done: other browsers, real phones, zoomed text, viewports smaller than 390x700, a screen reader, a state other than this
 finished synthetic replay (a running, never-run or unreadable-ledger state has not been rendered), light theme, print.
-At 390x700 the globe is small (about 90 px across) and node labels can overlap.
+At 390x700 the globe is small (about 80 px across); names that do not fit are not drawn and the read-out names the selection.
