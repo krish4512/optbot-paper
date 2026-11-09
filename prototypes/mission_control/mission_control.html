@@ -1,0 +1,3368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>optbot mission control (prototype, simulation only)</title>
+<!-- PROTOTYPE. One self-contained file: no network, no external fonts, no framework. It is a STATIC SNAPSHOT of a
+     finished SYNTHETIC replay. It is not connected to anything. Nothing in it updates except the snapshot age (computed
+     by your browser from the capture time) and the globe's rotation, which is a visual effect only: it does not mean
+     anything is being computed, scanned or watched. The data block is written by build_snapshot.py. -->
+<style>
+:root{
+  --bg:#05080c; --panel:#0a1118; --panel2:#0d161f; --line:rgba(125,205,225,.16); --line2:rgba(125,205,225,.30);
+  --fg:#dbe7ee; --mut:#8a9eac; --dim:#73889a; --cy:#55d9e6; --teal:#2fbfae; --amb:#e8b85a; --red:#f0747c; --grn:#62d493;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:ui-sans-serif,"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);-webkit-text-size-adjust:100%}
+body{background:
+  linear-gradient(rgba(125,205,225,.035) 1px,transparent 1px) 0 0/100% 32px,
+  linear-gradient(90deg,rgba(125,205,225,.035) 1px,transparent 1px) 0 0/32px 100%,
+  radial-gradient(1200px 500px at 50% -10%,rgba(47,191,174,.10),transparent 70%),var(--bg)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--cy);outline-offset:2px;border-radius:3px}
+.app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1.8fr) auto minmax(0,1fr);gap:10px;padding:12px 14px}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:14px;min-width:0}
+.brand{display:flex;align-items:baseline;gap:10px;font:700 15px/1 var(--sans);letter-spacing:.22em;white-space:nowrap}
+.brand{align-items:center}
+.bot{width:30px;height:30px;flex:none;color:var(--mut)}
+.bot.working{color:var(--grn)}
+.botstate{font:600 10.5px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);padding:4px 6px;border-radius:2px;white-space:nowrap}
+.botstate.working{color:var(--grn);border-color:rgba(98,212,147,.5)}
+@keyframes bob{50%{transform:translateY(-2px)}}
+@keyframes blink{0%,90%,100%{opacity:1}95%{opacity:.15}}
+@media (prefers-reduced-motion:no-preference){.bot.working{animation:bob 1.2s ease-in-out infinite}.bot.working .eye{animation:blink 2.6s infinite}}
+.brand span{font-weight:500;color:var(--mut);letter-spacing:.2em}
+.brand em{font-style:normal}
+.flags{display:flex;gap:6px;flex-wrap:nowrap;min-width:0}
+.flag{font:600 11px/1 var(--sans);letter-spacing:.11em;text-transform:uppercase;padding:5px 8px;border:1px solid;border-radius:2px;white-space:nowrap}
+.flag.sim{color:var(--amb);border-color:rgba(232,184,90,.55);background:rgba(232,184,90,.07)}
+.flag.syn{color:var(--amb);border-color:rgba(232,184,90,.35)}
+.flag.hist{color:var(--cy);border-color:rgba(85,217,230,.4)}
+.flag .short,.clock .short{display:none}
+@media (max-width:1500px){.flag .long{display:none} .flag .short{display:inline}}
+.clock{margin-left:auto;text-align:right;font:12px/1.5 var(--mono);color:var(--mut);white-space:nowrap}
+.clock b{color:var(--fg);font-weight:500}
+.clock .simcal b{color:var(--amb)}
+
+/* panels */
+.deck{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr) minmax(0,1.25fr);grid-template-rows:minmax(0,1fr);gap:10px;min-height:0}
+.panel,.term{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel);border:1px solid var(--line)}
+.panel::before,.term::before{content:"";position:absolute;left:-1px;top:-1px;width:10px;height:10px;border-left:1px solid var(--cy);border-top:1px solid var(--cy);opacity:.75}
+.ph{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);min-height:36px;flex:none}
+.ph h2{margin:0;font:600 11px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--cy);white-space:nowrap}
+.ph .note{font:11px/1.25 var(--mono);color:var(--dim);margin-left:auto;text-align:right}
+.seg{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.seg button,.btn{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;padding:6px 8px;color:var(--mut);border:1px solid var(--line);border-radius:2px;white-space:nowrap}
+.seg button[aria-pressed="true"]{color:var(--bg);background:var(--cy);border-color:var(--cy)}
+.seg button[hidden]{display:none}
+#rec-seg{margin-left:0;justify-content:flex-start}
+.sr{position:absolute !important;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.btn{color:var(--cy);border-color:var(--line2)}
+.fit{flex:1 1 0;min-height:0;overflow:hidden;margin:0;padding:0;list-style:none}
+.pf{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 12px;border-top:1px solid var(--line);flex:none;min-height:34px}
+.pf .range{font:11px/1.25 var(--mono);color:var(--mut);margin-right:auto}
+.pg{width:30px;height:24px;border:1px solid var(--line2);border-radius:2px;color:var(--cy);font:600 13px/1 var(--mono)}
+.pg:disabled{color:var(--dim);border-color:var(--line);cursor:default}
+
+/* rows */
+.kv{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr);gap:10px;padding:5px 12px;border-bottom:1px solid rgba(125,205,225,.07);align-items:baseline}
+.kv .k{font:600 11px/1.35 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.kv .v{font:12.5px/1.4 var(--mono);text-align:right;overflow-wrap:anywhere}
+.ok{color:var(--grn)} .warn{color:var(--amb)} .bad{color:var(--red)} .mut{color:var(--mut)} .cy{color:var(--cy)}
+.row{padding:8px 12px;border-bottom:1px solid rgba(125,205,225,.07)}
+.row .l1{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.row .name{font:600 13px/1.3 var(--mono)}
+.row .right{margin-left:auto;font:12px/1.3 var(--mono);text-align:right;color:var(--mut)}
+.row .st{font:12px/1.3 var(--mono);color:var(--mut)}
+.row .l2{font:12px/1.45 var(--mono);color:var(--mut);margin-top:2px;overflow-wrap:anywhere}
+.row .l2 b{color:var(--fg);font-weight:500}
+.row.head{background:rgba(85,217,230,.05)}
+.chip{font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;padding:4px 6px;border:1px solid;border-radius:2px;white-space:nowrap}
+.chip.open{color:var(--cy);border-color:rgba(85,217,230,.5)} .chip.closed{color:var(--mut);border-color:rgba(132,152,166,.45)}
+.chip.no{color:var(--mut);border-color:rgba(132,152,166,.4)} .chip.yes{color:var(--grn);border-color:rgba(98,212,147,.5)}
+.chip.rej{color:var(--red);border-color:rgba(240,116,124,.55)} .chip.prop{color:var(--amb);border-color:rgba(232,184,90,.5)}
+.bar{height:3px;background:rgba(125,205,225,.12);margin-top:6px}
+.bar i{display:block;height:100%;background:var(--teal)}
+.empty{padding:14px 12px;color:var(--mut);font:12.5px/1.5 var(--mono)}
+
+/* pipeline stage cards */
+.stagecard{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;padding:9px 12px;border-bottom:1px solid rgba(125,205,225,.07)}
+.stagecard svg{width:22px;height:22px;display:block}
+.stagecard .nm{display:block;font:600 11px/1.3 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--fg)}
+.stagecard .sb{display:block;font:11.5px/1.35 var(--mono);color:var(--mut);overflow-wrap:anywhere}
+.stagecard .ct{font:600 22px/1 var(--mono)}
+.stagecard[aria-pressed="true"]{background:rgba(85,217,230,.08);box-shadow:inset 2px 0 0 var(--cy)}
+.stagecard:hover{background:rgba(85,217,230,.05)}
+.c-seen{color:var(--amb)} .c-approved{color:var(--grn)} .c-filled{color:var(--cy)} .c-open{color:var(--cy)} .c-exited{color:var(--mut)}
+/* statistics strip */
+.stats{display:flex;border:1px solid var(--line);background:var(--panel);min-width:0}
+.stats div{flex:1 1 auto;padding:6px 12px;min-width:0;white-space:nowrap}
+.stats div+div{border-left:1px solid var(--line)}
+.stats span{display:block;font:600 10.5px/1.3 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--mut)}
+.stats b{font:600 13px/1.3 var(--mono)}
+
+/* globe */
+.stagewrap{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.stage{position:relative;flex:1 1 0;min-height:0;overflow:hidden}
+.huds{position:absolute;inset:0;pointer-events:none;z-index:3}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;padding:8px 12px;pointer-events:none}
+.hud b{display:block;font:600 20px/1.1 var(--mono)}
+.hud>span{font:600 10.5px/1.3 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--mut)}
+.hud.tl{left:0;top:0} .hud.tr{right:0;top:0;text-align:right} .hud.bl{left:0;bottom:0} .hud.br{right:0;bottom:0;text-align:right}
+.node{position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;display:grid;place-items:center}
+.node i{display:block;width:11px;height:11px;border:1.5px solid currentColor;border-radius:50%;background:var(--bg)}
+.node.trade i{border-radius:0;transform:rotate(45deg);width:10px;height:10px}
+.node.trade.isopen i{background:currentColor}
+.node.back{opacity:.38}
+.node[aria-pressed="true"] i{box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px currentColor}
+.node span{position:absolute;left:24px;top:50%;transform:translateY(-50%);font:600 11px/1 var(--mono);white-space:nowrap;color:var(--fg);pointer-events:none;text-shadow:0 0 4px var(--bg),0 0 4px var(--bg)}
+.node.lft span{left:auto;right:24px}
+.node.back span,.node.trade span{display:none}
+.node.trade[aria-pressed="true"] span{display:block}
+.n-no{color:var(--mut)} .n-prop{color:var(--amb)} .n-yes{color:var(--grn)} .n-rej{color:var(--red)} .n-open{color:var(--cy)} .n-closed{color:var(--mut)}
+.readout{flex:none;border-top:1px solid var(--line);padding:7px 12px 8px;font:12px/1.45 var(--mono);color:var(--mut);min-height:62px;display:flex;gap:10px;align-items:flex-start}
+.readout .txt{flex:1;min-width:0;overflow-wrap:anywhere}
+.readout .short{display:none}
+.readout b{color:var(--fg);font-weight:600}
+.readout .acts{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.led{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;margin-right:7px;vertical-align:-1px}
+.st-run .led{background:currentColor}
+.st-stop{color:var(--amb)} .st-run{color:var(--grn)} .st-never{color:var(--mut)}
+#to-records{display:none}
+
+/* terminal */
+.term{background:#04070a}
+.term .ph h2::before{content:"> ";color:var(--teal)}
+.log{font:12px/1.5 var(--mono);padding:6px 0 !important}
+.log li{display:grid;grid-template-columns:92px 66px minmax(0,1fr);gap:10px;padding:0 12px}
+.log time{color:var(--mut);white-space:nowrap}
+.log .k{font-weight:600;letter-spacing:.04em;color:var(--mut)}
+.log .m{color:#b9c9d3;overflow-wrap:anywhere}
+.log .k.t{color:var(--cy)} .log .k.x{color:var(--amb)} .log .k.r{color:var(--red)} .log .k.g{color:var(--grn)}
+
+.tabs{display:none}
+
+@media (max-width:860px){
+  html,body{font-size:13px}
+  .app{grid-template-rows:auto auto minmax(0,1.5fr) minmax(0,1fr);gap:8px;padding:8px}
+  .stats{display:none}                 /* the same figures are under Records > Status */
+  .bot{width:26px;height:26px}
+  .top{flex-wrap:wrap;gap:6px 10px}
+  .brand{font-size:13px}
+  .clock{margin-left:0;text-align:left;width:100%;font-size:11.5px;line-height:1.45;white-space:normal}
+  .flag{font-size:10.5px;padding:4px 5px;letter-spacing:.02em} .flags{gap:5px}
+  .flag .long{display:none} .flag .short{display:inline}
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--panel)}
+  .tabs button{padding:10px 4px;font:600 11px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--mut);border-bottom:2px solid transparent}
+  .tabs button[aria-selected="true"]{color:var(--cy);border-bottom-color:var(--cy);background:rgba(85,217,230,.06)}
+  .deck{grid-template-columns:minmax(0,1fr)}
+  .panel[hidden]{display:none}
+  .ph{padding:7px 10px;gap:8px}
+  .panel .ph h2{display:none} .panel .seg{margin-left:0;justify-content:flex-start}
+  .stagecard{padding:7px 10px} .stagecard .ct{font-size:19px}
+  .ph .note{margin-left:0;text-align:left}
+  .kv{padding:6px 10px} .row{padding:7px 10px}
+  .pg{width:40px;height:28px}
+  .huds{position:static;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line);flex:none}
+  .hud,.hud.tr,.hud.br{position:static;padding:5px 8px;text-align:left} .hud+.hud{border-left:1px solid var(--line)} .hud b{font-size:16px} .hud .long{display:none}
+  .hud>span{letter-spacing:.06em}
+  .readout{padding:6px 10px 7px;min-height:66px} .readout .long{display:none} .readout .short{display:inline}
+  .clock .long{display:none} .clock .short{display:inline}
+  .flags{flex-wrap:wrap}
+  #to-records:not([hidden]){display:inline-block}
+  .log{font-size:11.5px}
+  .log li{grid-template-columns:78px 56px minmax(0,1fr);gap:6px;padding:0 8px}
+  #log-note{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.seg button,.tabs button,.pg,.btn{transition:color .12s,background .12s,border-color .12s}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="top">
+    <div class="brand"><svg class="bot" id="bot" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M16 3v4"/><circle cx="16" cy="2.6" r="1.2"/><rect x="6" y="7" width="20" height="15" rx="3"/><circle class="eye" cx="12" cy="14" r="1.8" fill="currentColor" stroke="none"/><circle class="eye" cx="20" cy="14" r="1.8" fill="currentColor" stroke="none"/>
+        <path d="M12.5 18.5h7M3 12v5M29 12v5M11 22v4h10v-4"/></svg>OPTBOT <span>MISSION CONTROL</span><em class="botstate" id="botstate"></em></div>
+    <div class="flags" id="flags"></div>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Sections" id="tabs">
+    <button role="tab" id="tab-globe" aria-controls="p-globe" aria-selected="true">Overview</button>
+    <button role="tab" id="tab-pipe" aria-controls="p-pipe" aria-selected="false" tabindex="-1">Pipeline</button>
+    <button role="tab" id="tab-records" aria-controls="p-records" aria-selected="false" tabindex="-1">Records</button>
+  </div>
+
+  <main class="deck" id="deck">
+    <section class="panel" id="p-pipe" aria-labelledby="h-pipe">
+      <div class="ph"><h2 id="h-pipe">Pipeline</h2><span class="note">whole run · recorded counts</span></div>
+      <div class="fit" id="pipe-list" role="group" aria-label="Where trade ideas ended up. Select a stage to list its records."></div>
+      <div class="pf" id="pipe-pf"></div>
+    </section>
+
+    <section class="panel" id="p-globe" aria-labelledby="h-globe">
+      <div class="ph"><h2 id="h-globe">Overview</h2><span class="note" id="globe-state"></span>
+        <button class="btn" id="spin" type="button" aria-pressed="false">Pause rotation</button></div>
+      <div class="stagewrap">
+        <div class="huds">
+          <div class="hud tl"><b id="hud-taken"></b><span><span class="long">Trades </span>taken</span></div>
+          <div class="hud tr"><b id="hud-open" class="cy"></b><span>Open</span></div>
+          <div class="hud bl"><b id="hud-closed"></b><span>Closed</span></div>
+          <div class="hud br"><b id="hud-prop"></b><span>Proposed<span class="long"> · last tick</span></span></div>
+        </div>
+        <div class="stage" id="stage">
+          <canvas id="globe" aria-hidden="true"></canvas>
+          <div id="nodes" role="group" aria-label="Strategies and trades. Select one to see its recorded details."></div>
+        </div>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"><div class="txt" id="readout-txt"></div>
+        <div class="acts"><button class="btn" id="to-records" type="button" hidden>Details</button><button class="btn" id="clear" type="button" hidden>Clear</button></div></div>
+    </section>
+
+    <section class="panel" id="p-records" aria-labelledby="h-records">
+      <div class="ph"><h2 id="h-records" class="sr">Records</h2><div class="seg" id="rec-seg" role="group" aria-label="Which records to list"></div></div>
+      <div class="fit" id="rec-list"></div>
+      <div class="pf" id="rec-pf"></div>
+    </section>
+  </main>
+
+  <section class="stats" id="stats" aria-label="Simulated ledger and safety figures at the last recorded tick"></section>
+
+  <section class="term" aria-labelledby="h-log">
+    <div class="ph"><h2 id="h-log">Event log</h2><span class="note" id="log-note"></span><div class="seg" id="log-seg" role="group" aria-label="Filter the event log"></div></div>
+    <ol class="fit log" id="log-list" aria-label="Recorded journal events, oldest first"></ol>
+    <div class="pf" id="log-pf"></div>
+  </section>
+</div>
+
+<script id="snapshot" type="application/json">
+{
+ "evaluation": {
+  "decisions": [
+   {
+    "action": "open",
+    "approved": true,
+    "fill_note": "net cash -2,065.10",
+    "filled": true,
+    "max_loss": "2066.00",
+    "owner": "long_straddle",
+    "reasons": [],
+    "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+    "strategy": "long_straddle",
+    "symbol": "XSP",
+    "t": "2026-11-02 10:40:00 AST"
+   },
+   {
+    "action": "open",
+    "approved": true,
+    "fill_note": "net cash -775.10",
+    "filled": true,
+    "max_loss": "776.00",
+    "owner": "long_strangle",
+    "reasons": [],
+    "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+    "strategy": "long_strangle",
+    "symbol": "XSP",
+    "t": "2026-11-02 10:40:00 AST"
+   },
+   {
+    "action": "close",
+    "approved": true,
+    "fill_note": "net cash 354.89",
+    "filled": true,
+    "max_loss": null,
+    "owner": "long_strangle",
+    "reasons": [],
+    "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+    "strategy": "exit_manager",
+    "symbol": "XSP",
+    "t": "2026-11-16 10:40:00 AST"
+   },
+   {
+    "action": "open",
+    "approved": true,
+    "fill_note": "net cash -758.10",
+    "filled": true,
+    "max_loss": "759.00",
+    "owner": "long_strangle",
+    "reasons": [],
+    "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+    "strategy": "long_strangle",
+    "symbol": "XSP",
+    "t": "2026-11-17 10:40:00 AST"
+   },
+   {
+    "action": "close",
+    "approved": true,
+    "fill_note": "net cash 1,265.87",
+    "filled": true,
+    "max_loss": null,
+    "owner": "long_straddle",
+    "reasons": [],
+    "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+    "strategy": "exit_manager",
+    "symbol": "XSP",
+    "t": "2026-11-23 10:40:00 AST"
+   },
+   {
+    "action": "open",
+    "approved": true,
+    "fill_note": "net cash -1,801.10",
+    "filled": true,
+    "max_loss": "1802.00",
+    "owner": "long_straddle",
+    "reasons": [],
+    "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+    "strategy": "long_straddle",
+    "symbol": "XSP",
+    "t": "2026-11-24 10:40:00 AST"
+   },
+   {
+    "action": "close",
+    "approved": true,
+    "fill_note": "net cash 368.89",
+    "filled": true,
+    "max_loss": null,
+    "owner": "long_strangle",
+    "reasons": [],
+    "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+    "strategy": "exit_manager",
+    "symbol": "XSP",
+    "t": "2026-12-02 16:10:00 AST"
+   }
+  ],
+  "last_tick": [
+   {
+    "code": "do_nothing_baseline",
+    "outcome": "NO TRADE",
+    "reason": "Baseline strategy: deliberately does nothing",
+    "strategy": "do_nothing",
+    "symbol": "XSP"
+   },
+   {
+    "code": "already_open",
+    "outcome": "NO TRADE",
+    "reason": "The strategy already holds a position on this underlying (one at a time)",
+    "strategy": "long_straddle",
+    "symbol": "XSP"
+   },
+   {
+    "code": "no_expiry_in_dte_window",
+    "outcome": "NO TRADE",
+    "reason": "No listed expiry fell inside the strategy's days-to-expiry window (strategy.<name>.min_dte..max_dte), or the ones that did were past the entry cutoff (exit.entry_cutoff_days_before_last_trade)",
+    "strategy": "long_strangle",
+    "symbol": "XSP"
+   },
+   {
+    "code": "disabled_by_config",
+    "outcome": "NO TRADE",
+    "reason": "The strategy is switched off in config (strategy.<name>.enabled)",
+    "strategy": "put_credit_spread",
+    "symbol": "XSP"
+   }
+  ],
+  "last_tick_local": "2026-12-04 16:40:00 AST",
+  "reasons": [
+   {
+    "code": "already_open",
+    "count": 582,
+    "label": "The strategy already holds a position on this underlying (one at a time)"
+   },
+   {
+    "code": "disabled_by_config",
+    "count": 306,
+    "label": "The strategy is switched off in config (strategy.<name>.enabled)"
+   },
+   {
+    "code": "no_expiry_in_dte_window",
+    "count": 26,
+    "label": "No listed expiry fell inside the strategy's days-to-expiry window (strategy.<name>.min_dte..max_dte), or the ones that did were past the entry cutoff (exit.entry_cutoff_days_before_last_trade)"
+   }
+  ],
+  "regular_ticks": 306,
+  "ticks": 330
+ },
+ "flags": {
+  "mode": "REPLAY",
+  "mode_text": "REPLAY - recorded quotes, clock taken from the quote timestamps, simulated orders",
+  "simulation": "SIMULATION ONLY - no real money, no real orders",
+  "sources": [
+   "SYNTHETIC_TEST_FIXTURE"
+  ],
+  "synthetic": true
+ },
+ "links": {
+  "broker": {
+   "name": "Live broker eligibility checked",
+   "state": "not started"
+  },
+  "data_source": {
+   "name": "Real options data source connected",
+   "state": "blocked"
+  },
+  "live": {
+   "name": "Live trading (not authorized)",
+   "state": "blocked"
+  },
+  "paper_real": {
+   "name": "Paper run on real delayed data",
+   "state": "not started"
+  },
+  "review": {
+   "name": "Review of results",
+   "state": "not started"
+  }
+ },
+ "log": [
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "init: initial cash 283,687.94",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "SOURCE",
+   "key": true,
+   "m": "SYNTHETIC_TEST_FIXTURE XSP (synthetic, made-up)",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "long_straddle XSP: buy 1 C500 + buy 1 P500 exp 2026-12-02, limit net 20.66",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "long_straddle open: approved, max loss 2066.00",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 C500 exp 2026-12-02 @ 10.1400",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 P500 exp 2026-12-02 @ 10.4900",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "long_straddle open: paper fill, net cash -2,065.10, fees 2.10",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "long_strangle XSP: buy 1 C515 + buy 1 P480 exp 2026-12-02, limit net 7.76",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "long_strangle open: approved, max loss 776.00",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 C515 exp 2026-12-02 @ 4.5400",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 P480 exp 2026-12-02 @ 3.1900",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "long_strangle open: paper fill, net cash -775.10, fees 2.10",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-02 10:40:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-02.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-02 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-03.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-03 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-04.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-04 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-05.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-05 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-06.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-06 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote weekly_2026-11-06.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-06 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-09.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-09 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-10.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-10 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-11.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-11 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-12.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-12 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-13.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-13 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote weekly_2026-11-13.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-13 17:30:00 AST"
+  },
+  {
+   "k": "EXIT?",
+   "key": true,
+   "m": "long_strangle XSP: stop_loss (pnl -414.0000, threshold -388.000)",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "exit_manager XSP: sell 1 C515 + sell 1 P480 exp 2026-12-02, limit net 0",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "exit_manager close: approved",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 C515 exp 2026-12-02 @ 2.2200",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 P480 exp 2026-12-02 @ 1.3500",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "exit_manager close: paper fill, net cash 354.89, fees 2.11",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "EXIT",
+   "key": true,
+   "m": "long_strangle: closed by stop_loss",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "t": "2026-11-16 10:40:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-16.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-16 17:30:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "long_strangle XSP: buy 1 C520 + buy 1 P485 exp 2026-12-16, limit net 7.59",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-11-17 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "long_strangle open: approved, max loss 759.00",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-11-17 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 C520 exp 2026-12-16 @ 4.2400",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-11-17 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 P485 exp 2026-12-16 @ 3.3200",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-11-17 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "long_strangle open: paper fill, net cash -758.10, fees 2.10",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-11-17 10:40:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-17.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-17 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-18.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-18 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-19.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-19 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-20.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-20 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote weekly_2026-11-20.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-20 17:30:00 AST"
+  },
+  {
+   "k": "EXIT?",
+   "key": true,
+   "m": "long_straddle XSP: time_stop",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "exit_manager XSP: sell 1 C500 + sell 1 P500 exp 2026-12-02, limit net 0",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "exit_manager close: approved",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 C500 exp 2026-12-02 @ 9.9000",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 P500 exp 2026-12-02 @ 2.7800",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "exit_manager close: paper fill, net cash 1,265.87, fees 2.13",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "EXIT",
+   "key": true,
+   "m": "long_straddle: closed by time_stop",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "t": "2026-11-23 10:40:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-23.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-23 17:30:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "long_straddle XSP: buy 1 C505 + buy 1 P505 exp 2026-12-16, limit net 18.02",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "t": "2026-11-24 10:40:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "long_straddle open: approved, max loss 1802.00",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "t": "2026-11-24 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 C505 exp 2026-12-16 @ 10.0800",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "t": "2026-11-24 10:40:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: BUY 1 P505 exp 2026-12-16 @ 7.9100",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "t": "2026-11-24 10:40:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "long_straddle open: paper fill, net cash -1,801.10, fees 2.10",
+   "s": "long_straddle",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "t": "2026-11-24 10:40:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-24.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-24 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-25.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-25 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-27.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-27 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote weekly_2026-11-27.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-27 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-11-30.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-11-30 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-12-01.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-01 17:30:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "2 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 2, stale 0, equity 282,063.28",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "2 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 2, stale 0, equity 282,003.28",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "2 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 2, stale 0, equity 281,916.28",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "2 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 2, stale 0, equity 281,851.28",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 15:40:00 AST"
+  },
+  {
+   "k": "EXIT?",
+   "key": true,
+   "m": "long_strangle XSP: stop_loss (pnl -383.0000, threshold -379.500)",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "PROPOSE",
+   "key": true,
+   "m": "exit_manager XSP: sell 1 C520 + sell 1 P485 exp 2026-12-16, limit net 0",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "RISK",
+   "key": true,
+   "m": "exit_manager close: approved",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 C520 exp 2026-12-16 @ 3.0800",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "LEDGER",
+   "key": true,
+   "m": "trade: SELL 1 P485 exp 2026-12-16 @ 0.6300",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "FILL",
+   "key": true,
+   "m": "exit_manager close: paper fill, net cash 368.89, fees 2.11",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "EXIT",
+   "key": true,
+   "m": "long_strangle: closed by stop_loss",
+   "s": "long_strangle",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,741.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: already_open",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,739.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 17:30:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session POST_CLOSE, open 1, stale 0, equity 281,739.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-12-02.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-02 17:30:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,660.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,668.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,642.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,642.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,644.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,667.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,654.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,658.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,716.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,751.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,738.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,758.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,726.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 17:30:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session POST_CLOSE, open 1, stale 0, equity 281,726.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-12-03.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-03 17:30:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,648.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 10:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,628.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,621.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 11:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,597.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,591.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 12:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,588.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,612.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 13:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,598.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,589.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 14:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,590.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,592.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 15:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,596.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:10:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "do_nothing XSP: do_nothing_baseline",
+   "s": "do_nothing",
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_straddle XSP: already_open",
+   "s": "long_straddle",
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "long_strangle XSP: no_expiry_in_dte_window",
+   "s": "long_strangle",
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "SKIP",
+   "key": false,
+   "m": "put_credit_spread XSP: disabled_by_config",
+   "s": "put_credit_spread",
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "MARKS",
+   "key": false,
+   "m": "1 open position(s) valued, 0 unvalued",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session REGULAR, open 1, stale 0, equity 281,590.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 16:40:00 AST"
+  },
+  {
+   "k": "RECON",
+   "key": false,
+   "m": "ok",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 17:30:00 AST"
+  },
+  {
+   "k": "TICK",
+   "key": false,
+   "m": "session POST_CLOSE, open 1, stale 0, equity 281,590.17",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote daily_2026-12-04.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 17:30:00 AST"
+  },
+  {
+   "k": "REPORT",
+   "key": true,
+   "m": "wrote weekly_2026-12-04.md",
+   "s": null,
+   "sid": null,
+   "t": "2026-12-04 17:30:00 AST"
+  }
+ ],
+ "meta": {
+  "fixture": "optbot replay --synthetic --days 24 --capital-cad 400000 (made-up prices, replay clock)",
+  "generated_at": "2026-11-09T21:19:22.229714+00:00",
+  "generated_local": "2026-11-09 17:19:22 AST",
+  "journal_events": 2258,
+  "log_key_events": 72,
+  "log_window": 240,
+  "optbot_version": "0.6.53"
+ },
+ "money": {
+  "cash": "280,278.17",
+  "currency": "USD",
+  "equity": "281,590.17",
+  "equity_partial": false,
+  "fees": "14.77",
+  "label": "SIMULATED",
+  "realized": "-1,596.00",
+  "starting_capital": "283,687.94",
+  "unrealized": "-487.00"
+ },
+ "pipeline": {
+  "approved": {
+   "count": 4,
+   "label": "Risk-approved",
+   "sub": "0 rejected by the risk checks"
+  },
+  "exited": {
+   "count": 3,
+   "label": "Exited",
+   "sub": "3 by an exit rule, 0 at expiry or other"
+  },
+  "filled": {
+   "count": 4,
+   "label": "Filled",
+   "sub": "paper fills booked"
+  },
+  "open": {
+   "count": 1,
+   "label": "Open now",
+   "sub": "still held"
+  },
+  "seen": {
+   "count": 4,
+   "label": "Candidates seen",
+   "sub": "proposed by the strategies"
+  }
+ },
+ "run": {
+  "display_state": "REPLAY FINISHED - nothing is running",
+  "display_text": "Historical simulated activity from a finished replay; the bot is stopped. During the replay 4 positions opened; at its end 1 was still open and 3 had closed.",
+  "first_day": "2026-11-02",
+  "last_day": "2026-12-04",
+  "last_tick_local": "2026-12-04 17:30:00 AST",
+  "progress": "Day 24 (run length not recorded; pass --total-days for \"of M\")",
+  "session": "At the last tick: After the close: settling, checking and reporting",
+  "session_code": "POST_CLOSE",
+  "status": "STOPPED"
+ },
+ "safety": {
+  "chain_problems": 0,
+  "halts": [],
+  "kill_switch": {
+   "active": false,
+   "reason": ""
+  },
+  "ledger_unavailable": false,
+  "newest_quote_local": "2026-12-04 16:40:00 AST",
+  "stale_count": 0
+ },
+ "strategies": [
+  {
+   "closed": 0,
+   "last": {
+    "code": "do_nothing_baseline",
+    "outcome": "NO TRADE",
+    "reason": "Baseline strategy: deliberately does nothing",
+    "strategy": "do_nothing",
+    "symbol": "XSP"
+   },
+   "name": "do_nothing",
+   "open": 0,
+   "proposed": 0,
+   "skips": 306,
+   "trades": 0
+  },
+  {
+   "closed": 1,
+   "last": {
+    "code": "already_open",
+    "outcome": "NO TRADE",
+    "reason": "The strategy already holds a position on this underlying (one at a time)",
+    "strategy": "long_straddle",
+    "symbol": "XSP"
+   },
+   "name": "long_straddle",
+   "open": 1,
+   "proposed": 2,
+   "skips": 304,
+   "trades": 2
+  },
+  {
+   "closed": 2,
+   "last": {
+    "code": "no_expiry_in_dte_window",
+    "outcome": "NO TRADE",
+    "reason": "No listed expiry fell inside the strategy's days-to-expiry window (strategy.<name>.min_dte..max_dte), or the ones that did were past the entry cutoff (exit.entry_cutoff_days_before_last_trade)",
+    "strategy": "long_strangle",
+    "symbol": "XSP"
+   },
+   "name": "long_strangle",
+   "open": 0,
+   "proposed": 2,
+   "skips": 304,
+   "trades": 2
+  },
+  {
+   "closed": 0,
+   "last": {
+    "code": "disabled_by_config",
+    "outcome": "NO TRADE",
+    "reason": "The strategy is switched off in config (strategy.<name>.enabled)",
+    "strategy": "put_credit_spread",
+    "symbol": "XSP"
+   },
+   "name": "put_credit_spread",
+   "open": 0,
+   "proposed": 0,
+   "skips": 306,
+   "trades": 0
+  }
+ ],
+ "trades": [
+  {
+   "cost_incl_fees": "1,801.10",
+   "legs": "buy 1 C505 + buy 1 P505, exp 2026-12-16",
+   "opened_local": "2026-11-24 10:40:00 AST",
+   "result": "open: not revalued here (quote values are not stored); see Money for the last recorded valuation",
+   "sid": "long_straddle-XSP-20261124T0940-d34b99242e",
+   "status": "open",
+   "status_text": "open",
+   "strategy": "long_straddle",
+   "underlying": "XSP"
+  },
+  {
+   "cost_incl_fees": "758.10",
+   "legs": "buy 1 C520 + buy 1 P485, exp 2026-12-16",
+   "opened_local": "2026-11-17 10:40:00 AST",
+   "result": "net after fees -389.22 USD",
+   "sid": "long_strangle-XSP-20261117T0940-1a5e2bac54",
+   "status": "closed_by_exit",
+   "status_text": "closed by exit: stop loss",
+   "strategy": "long_strangle",
+   "underlying": "XSP"
+  },
+  {
+   "cost_incl_fees": "2,065.10",
+   "legs": "buy 1 C500 + buy 1 P500, exp 2026-12-02",
+   "opened_local": "2026-11-02 10:40:00 AST",
+   "result": "net after fees -799.24 USD",
+   "sid": "long_straddle-XSP-20261102T0940-d4e00652a3",
+   "status": "closed_by_exit",
+   "status_text": "closed by exit: time stop",
+   "strategy": "long_straddle",
+   "underlying": "XSP"
+  },
+  {
+   "cost_incl_fees": "775.10",
+   "legs": "buy 1 C515 + buy 1 P480, exp 2026-12-02",
+   "opened_local": "2026-11-02 10:40:00 AST",
+   "result": "net after fees -420.22 USD",
+   "sid": "long_strangle-XSP-20261102T0940-7b2d124c68",
+   "status": "closed_by_exit",
+   "status_text": "closed by exit: stop loss",
+   "strategy": "long_strangle",
+   "underlying": "XSP"
+  }
+ ]
+}
+</script>
+
+<script>
+(function(){
+"use strict";
+var S = JSON.parse(document.getElementById("snapshot").textContent || "{}");
+var NA = "unavailable";
+function $(id){ return document.getElementById(id); }
+function h(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function add(parent){ for (var i = 1; i < arguments.length; i++) if (arguments[i]) parent.appendChild(arguments[i]); return parent; }
+function val(v){ return (v === null || v === undefined || v === "") ? NA : String(v); }
+function hm(t){ return t ? String(t).replace(/^(\d{4}-\d\d-\d\d \d\d:\d\d):\d\d/, "$1") : NA; }
+function num(n){ return Number(n).toLocaleString("en-US"); }
+if (!S.meta){ document.body.textContent = "No snapshot data in this file. Run build_snapshot.py."; return; }
+var replay = S.flags.mode === "REPLAY", sf = S.safety, EV = S.evaluation, P = S.pipeline || {};
+function cnt(k){ return (P[k] && P[k].count !== null && P[k].count !== undefined) ? String(P[k].count) : "n/a"; }
+
+/* ---------- header: what is simulated, and two different clocks ---------- */
+function flag(cls, long, short){ var f = h("span", "flag " + cls); add(f, h("span", "long", long), h("span", "short", short)); return f; }
+add($("flags"), flag("sim", "Simulation only", "Simulation only"),
+    flag("syn", S.flags.synthetic ? "Synthetic data · made-up prices" : "Data: " + val((S.flags.sources || []).join(", ")), S.flags.synthetic ? "Synthetic data" : "Data"),
+    flag("hist", "Static snapshot · not live", "Snapshot · not live"));
+$("flags").title = "Simulation only: no real money, no real orders. " + (S.flags.synthetic ? "Synthetic data: every price is made up. " : "") + "Static snapshot: this file is not connected to anything and does not update.";
+function age(){
+  var s = Math.floor((Date.now() - Date.parse(S.meta.generated_at)) / 1000);
+  if (!isFinite(s) || s < 0) return "n/a";
+  if (s < 90) return s + " s"; if (s < 5400) return Math.floor(s / 60) + " min";
+  if (s < 172800) return Math.floor(s / 3600) + " h"; return Math.floor(s / 86400) + " days";
+}
+var ageEl = h("b", null, age()), cap = h("div"), cal = h("div", "simcal");
+add(cap, document.createTextNode("CAPTURED (real clock) "), h("b", null, hm(S.meta.generated_local)), document.createTextNode(" · age "), ageEl);
+add(cal, h("span", "long", "SIMULATED CALENDAR "), h("span", "short", "SIM. CALENDAR "),
+    h("b", "long", S.run.first_day ? S.run.first_day + " → " + S.run.last_day : NA), h("b", "short", S.run.first_day ? S.run.first_day.slice(5) + " → " + S.run.last_day.slice(5) : NA),
+    replay ? h("span", null, " · made-up replay clock") : null);
+add($("clock"), cap, cal);
+$("clock").title = "Two different clocks. CAPTURED is when this file was generated (real time); it does not update, and the age is computed by this browser. The SIMULATED CALENDAR is the made-up replay clock inside the synthetic run: every time shown in the panels and the log is on that clock. Nothing here is a real or future trade.";
+setInterval(function(){ ageEl.textContent = age(); }, 30000);
+
+var working = S.run.status === "RUNNING";                 // the avatar moves only if the record says the bot was running at capture
+if (working) $("bot").classList.add("working");
+$("botstate").textContent = working ? "working at capture" : "idle"; if (working) $("botstate").classList.add("working");
+$("botstate").title = "From the recorded run status (" + S.run.status + "). This file is a snapshot; nothing is running in it.";
+
+/* ---------- generic fixed-height pager (nothing ever scrolls) ---------- */
+function Pager(box, foot, noun, fromEnd){
+  this.box = box; this.noun = noun; this.fromEnd = !!fromEnd; this.items = []; this.make = null; this.pages = []; this.page = 0; this.total = null; this.empty = "";
+  this.range = h("span", "range"); this.range.setAttribute("aria-live", "polite");
+  this.prev = h("button", "pg", "‹"); this.next = h("button", "pg", "›"); this.prev.type = this.next.type = "button";
+  var self = this;
+  this.prev.onclick = function(){ if (self.page > 0){ self.page--; self.draw(); } };
+  this.next.onclick = function(){ if (self.page < self.pages.length - 1){ self.page++; self.draw(); } };
+  add(foot, this.range, this.prev, this.next);
+}
+Pager.prototype.set = function(items, make, empty){ this.items = items; this.make = make; this.empty = empty || ""; this.pinEnd = this.fromEnd; this.page = 0; this.pages = []; this.layout(); };
+Pager.prototype.layout = function(){
+  var box = this.box, it = this.items, make = this.make, pages = [], i, j, el;
+  if (!box.clientHeight) return;                                   // hidden (another tab is showing): laid out when shown
+  var atEnd = this.fromEnd && (this.pinEnd || this.page >= this.pages.length - 1), first = this.pages[this.page] ? this.pages[this.page][0] : 0;
+  if (this.fromEnd){
+    for (j = it.length; j > 0; j = i){
+      box.textContent = "";
+      for (i = j; i > 0; i--){ el = make(it[i - 1]); box.insertBefore(el, box.firstChild); if (box.scrollHeight > box.clientHeight && i < j){ box.removeChild(el); break; } }
+      pages.unshift([i, j]);
+    }
+  } else {
+    for (i = 0; i < it.length; i = j){
+      box.textContent = "";
+      for (j = i; j < it.length; j++){ el = make(it[j]); box.appendChild(el); if (box.scrollHeight > box.clientHeight && j > i){ box.removeChild(el); break; } }
+      pages.push([i, j]);
+    }
+  }
+  this.pages = pages; this.pinEnd = false;
+  if (atEnd) this.page = Math.max(0, pages.length - 1);
+  else { this.page = 0; for (i = 0; i < pages.length; i++) if (pages[i][0] <= first && first < pages[i][1]) this.page = i; }
+  this.draw();
+};
+Pager.prototype.draw = function(){
+  var box = this.box, p = this.pages[this.page], older = this.fromEnd; box.textContent = "";
+  this.prev.setAttribute("aria-label", (older ? "Older " : "Previous ") + this.noun); this.next.setAttribute("aria-label", (older ? "Newer " : "Next ") + this.noun);
+  if (!this.items.length){ add(box, h("div", "empty", this.empty)); this.range.textContent = "0 " + this.noun; this.prev.disabled = this.next.disabled = true; return; }
+  if (!p) return;
+  for (var i = p[0]; i < p[1]; i++) box.appendChild(this.make(this.items[i]));
+  this.range.textContent = (p[0] + 1) + "–" + p[1] + " of " + this.items.length + " " + this.noun + (this.total ? " · " + this.total : "");
+  this.prev.disabled = this.page === 0; this.next.disabled = this.page >= this.pages.length - 1;
+};
+function Seg(el, options, onPick){
+  var self = this; this.el = el; this.btn = {}; this.onPick = onPick;
+  options.forEach(function(o){ var b = h("button", null, o[1]); b.type = "button"; b.setAttribute("aria-pressed", "false"); b.onclick = function(){ self.pick(o[0]); }; self.btn[o[0]] = b; el.appendChild(b); });
+}
+Seg.prototype.pick = function(k){ for (var n in this.btn) this.btn[n].setAttribute("aria-pressed", n === k ? "true" : "false"); this.current = k; this.onPick(k); };
+
+/* ---------- status ---------- */
+var RUN = {"STOPPED": ["NOT RUNNING", "st-stop"], "RUNNING": ["RUNNING AT CAPTURE", "st-run"], "NEVER RUN": ["NEVER RUN", "st-never"]}[S.run.status] || [val(S.run.status), "st-never"];
+function kv(k, v, cls){ var r = h("div", "kv"); add(r, h("div", "k", k), h("div", "v" + (cls ? " " + cls : ""), v)); return r; }
+var links = S.links || {};
+var statusRows = [
+  ["Bot process", RUN[0], RUN[1]],
+  ["Run", val(S.run.display_state).split(" - ")[0]],
+  ["Captured (real clock)", hm(S.meta.generated_local)],
+  ["Simulated calendar", S.run.first_day ? S.run.first_day.slice(5) + " to " + S.run.last_day.slice(5) + " · " + val(S.run.progress).split(" (")[0] : NA, "warn"],
+  ["Mode", val(S.flags.mode) + (replay ? " · quote-time clock" : "")],
+  ["Last tick" + (replay ? " (sim.)" : ""), hm(S.run.last_tick_local)],
+  ["Last session", val(S.run.session_code)],
+  ["Data source", (S.flags.sources || []).join(", ") || NA, S.flags.synthetic ? "warn" : ""],
+  ["Newest quote" + (replay ? " (sim.)" : ""), hm(sf.newest_quote_local)],
+  ["Stale marks, last tick", String(sf.stale_count), sf.stale_count ? "bad" : ""],
+  ["Kill switch", sf.kill_switch.active ? "ON · " + sf.kill_switch.reason : "off", sf.kill_switch.active ? "bad" : ""],
+  ["Halts", sf.halts.length ? sf.halts.map(function(x){ return x.name; }).join(", ") : "none", sf.halts.length ? "bad" : ""],
+  ["Journal", num(S.meta.journal_events) + " events · chain " + (sf.chain_problems ? sf.chain_problems + " problem(s)" : "intact"), sf.chain_problems ? "bad" : ""],
+  ["Ledger", sf.ledger_unavailable ? "UNAVAILABLE" : "readable", sf.ledger_unavailable ? "bad" : ""],
+  ["Sim. equity" + (S.money.equity_partial ? " (PARTIAL)" : ""), val(S.money.equity)]
+];
+[["Sim. cash", S.money.cash], ["Sim. realized, pre-fee", S.money.realized], ["Sim. unrealized", S.money.unrealized], ["Sim. fees", S.money.fees], ["Start capital · test input", S.money.starting_capital]]
+  .forEach(function(r){ statusRows.push([r[0], val(r[1])]); });
+Object.keys(links).forEach(function(k){ statusRows.push([links[k].name, String(links[k].state).toUpperCase(), links[k].state === "done" ? "ok" : "mut"]); });
+
+/* ---------- statistics strip (wide screens; the same rows are under Records > Status) ---------- */
+[["Sim. equity" + (S.money.equity_partial ? " (partial)" : ""), val(S.money.equity)], ["Sim. cash", val(S.money.cash)], ["Sim. realized, pre-fee", val(S.money.realized)], ["Sim. unrealized", val(S.money.unrealized)],
+ ["Sim. fees", val(S.money.fees)], ["Journal", num(S.meta.journal_events) + " · chain " + (sf.chain_problems ? "BROKEN" : "intact"), sf.chain_problems ? "bad" : ""],
+ ["Kill switch", sf.kill_switch.active ? "ON" : "off", sf.kill_switch.active ? "bad" : ""], ["Stale marks", String(sf.stale_count), sf.stale_count ? "bad" : ""], ["optbot", "v" + val(S.meta.optbot_version)]]
+  .forEach(function(r){ var d = h("div"); add(d, h("span", null, r[0]), h("b", r[2] || null, r[1])); $("stats").appendChild(d); });
+
+/* ---------- records: trades and evaluations ---------- */
+var OUT = {"NO TRADE": "no", "PROPOSED": "prop", "APPROVED": "yes", "FILLED": "yes", "REJECTED": "rej"};
+function tradeRow(t){
+  var r = h("div", "row"), l1 = h("div", "l1"), open = t.status === "open";
+  add(l1, h("span", "chip " + (open ? "open" : "closed"), open ? "open" : "closed"), h("span", "name", val(t.strategy) + " · " + val(t.underlying)),
+      open ? null : h("span", "st", val(t.status_text).replace(/^closed /, "")));
+  var l3 = h("div", "l2"); add(l3, document.createTextNode("opened " + hm(t.opened_local) + " (sim.) · cost incl. fees "), h("b", null, val(t.cost_incl_fees)),
+      document.createTextNode(open ? " · open, not revalued here" : " · " + val(t.result)));
+  return add(r, l1, h("div", "l2", val(t.legs)), l3);
+}
+function tickRow(x){
+  var r = h("div", "row"), l1 = h("div", "l1");
+  add(l1, h("span", "chip " + (OUT[x.outcome] || "no"), x.outcome), h("span", "name", val(x.strategy) + (x.symbol ? " · " + x.symbol : "")));
+  return add(r, l1, h("div", "l2", val(x.reason) + (x.code ? "  [" + x.code + "]" : "")));
+}
+function decisionRow(x){
+  var r = h("div", "row"), l1 = h("div", "l1");
+  add(l1, h("span", "chip " + (x.approved ? "yes" : "rej"), x.approved ? "approved" : "rejected"), h("span", "name", val(x.owner || x.strategy) + " · " + val(x.action)), h("span", "right", hm(x.t).slice(5, 16)));
+  var why = x.approved ? (x.max_loss ? "max loss " + x.max_loss : "risk checks passed") : x.reasons.join("; ");
+  var fill = x.filled === null ? "no fill record" : (x.filled ? "paper fill · " + val(x.fill_note) : "not filled · " + val(x.fill_note));
+  return add(r, l1, h("div", "l2", why + " · " + fill));
+}
+var maxReason = Math.max.apply(null, [1].concat((EV.reasons || []).map(function(x){ return x.count; })));
+function reasonRow(x){
+  var r = h("div", "row"), l1 = h("div", "l1"), bar = h("div", "bar"), fill = h("i");
+  add(l1, h("span", "name", String(x.count) + "×"), h("span", "right", "[" + x.code + "]"));
+  fill.style.width = Math.max(2, Math.round(100 * x.count / maxReason)) + "%"; bar.appendChild(fill);
+  return add(r, l1, h("div", "l2", x.label), bar);
+}
+function anyRow(x){ return x.kind === "trade" ? tradeRow(x.v) : x.kind === "tick" ? tickRow(x.v) : x.kind === "risk" ? decisionRow(x.v) : x.kind === "kv" ? kv(x.v[0], x.v[1]) : headRow(x.v); }
+function headRow(t){ var r = h("div", "row head"); return add(r, h("div", "l1")).firstChild.appendChild(h("span", "name", t)), r; }
+var trades = S.trades || [], decisions = (EV.decisions || []).slice().reverse(), recPager = new Pager($("rec-list"), $("rec-pf"), "rows"), selItems = [];
+var tradeEmpty = sf.ledger_unavailable ? "Trades unavailable: the ledger could not be read." : "No trades recorded in this run.";
+var recSeg = new Seg($("rec-seg"), [["trades", "Trades " + trades.length], ["tick", "Last tick"], ["risk", "Risk " + decisions.length], ["why", "Why not"], ["status", "Status"], ["sel", "Selected"]], function(k){
+  if (k === "trades"){ recPager.noun = "trades"; recPager.total = "simulated paper USD"; recPager.set(trades, tradeRow, tradeEmpty); }
+  else if (k === "tick"){ recPager.noun = "strategies"; recPager.total = EV.last_tick_local ? "sim. tick " + hm(EV.last_tick_local).slice(5, 16) : null; recPager.set(EV.last_tick || [], tickRow, "No evaluation recorded."); }
+  else if (k === "risk"){ recPager.noun = "risk decisions"; recPager.total = "newest first"; recPager.set(decisions, decisionRow, "No risk decision recorded."); }
+  else if (k === "why"){ recPager.noun = "skip reasons"; recPager.total = EV.ticks ? "over " + EV.ticks + " ticks" : null; recPager.set(EV.reasons || [], reasonRow, "No skip or rejection recorded."); }
+  else if (k === "status"){ recPager.noun = "status rows"; recPager.total = null; recPager.set(statusRows, function(r){ return kv(r[0], r[1], r[2]); }, ""); }
+  else { recPager.noun = "rows"; recPager.total = "selection"; recPager.set(selItems, anyRow, "Nothing selected."); }
+});
+recSeg.btn.sel.hidden = true;
+recSeg.pick("trades");
+
+/* ---------- event log (terminal) ---------- */
+var KCLS = {"PROPOSE": "t", "FILL": "t", "LEDGER": "t", "EXIT?": "x", "EXIT": "x", "RISK": "g", "SOURCE": "x"};
+function logRow(e){
+  var li = h("li"), t = h("time", null, e.t ? e.t.slice(5, 16) : ""), k = h("span", "k " + (KCLS[e.k] || "") + (e.k === "RISK" && /REJECTED/.test(e.m) ? " r" : ""), e.k);
+  if (e.t){ t.setAttribute("datetime", e.t.slice(0, 19).replace(" ", "T")); li.title = e.t + " (simulated replay clock)"; }
+  return add(li, t, k, h("span", "m", e.m));
+}
+var LOG = S.log || [], logKey = LOG.filter(function(e){ return e.key; }), logLinked = [], logPager = new Pager($("log-list"), $("log-pf"), "lines", true);
+var zone = (LOG.length && LOG[0].t) ? LOG[0].t.slice(20) : "";
+$("log-note").textContent = "recorded journal · times on the SIMULATED replay clock" + (zone ? " (" + zone + ")" : "") + " · oldest first";
+var logSeg = new Seg($("log-seg"), [["key", "Key events"], ["all", "All recent"], ["link", "Linked"]], function(k){
+  var all = num(S.meta.journal_events) + " recorded";
+  if (k === "key"){ logPager.noun = "key events"; logPager.total = all + " · sim. clock"; logPager.set(logKey, logRow, "No key event recorded."); }
+  else if (k === "all"){ logPager.noun = "lines"; logPager.total = "key + last " + S.meta.log_window + " of " + all; logPager.set(LOG, logRow, "No event recorded."); }
+  else { logPager.noun = "linked lines"; logPager.total = "of the " + LOG.length + " lines kept in this file"; logPager.set(logLinked, logRow, "No kept log line is linked to this selection."); }
+});
+logSeg.btn.link.hidden = true;
+logSeg.pick("key");
+
+/* ---------- pipeline: the real optbot stages with their recorded counts ---------- */
+var ICON = {seen: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>',
+            approved: '<path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6z"/><path d="M8.8 12l2.3 2.3 4.1-4.6"/>',
+            filled: '<path d="M13 3L5 13.5h6L10 21l9-11h-6z"/>', open: '<path d="M12 3l8 9-8 9-8-9z"/>', exited: '<path d="M10 4H5v16h5M14 8l4 4-4 4M9 12h9"/>'};
+var STAGES = ["seen", "approved", "filled", "open", "exited"].filter(function(k){ return P[k]; }), selected = null;
+function stageCard(k){
+  var b = h("button", "stagecard c-" + k), ic = document.createElementNS("http://www.w3.org/2000/svg", "svg"), mid = h("span");
+  b.type = "button"; ic.setAttribute("viewBox", "0 0 24 24"); ic.setAttribute("fill", "none"); ic.setAttribute("stroke", "currentColor"); ic.setAttribute("stroke-width", "1.6");
+  ic.setAttribute("stroke-linecap", "round"); ic.setAttribute("stroke-linejoin", "round"); ic.setAttribute("aria-hidden", "true"); ic.innerHTML = ICON[k];
+  add(mid, h("span", "nm", P[k].label), h("span", "sb", P[k].sub));
+  add(b, ic, mid, h("span", "ct", cnt(k)));
+  b.setAttribute("aria-pressed", selected && selected.kind === "stage" && selected.key === k ? "true" : "false");
+  b.setAttribute("aria-label", P[k].label + ": " + cnt(k) + ". " + P[k].sub);
+  b.onclick = function(){ select(selected && selected.kind === "stage" && selected.key === k ? null : {kind: "stage", key: k}); };
+  return b;
+}
+var pipePager = new Pager($("pipe-list"), $("pipe-pf"), "stages");
+pipePager.total = "select for records";
+pipePager.set(STAGES, stageCard, "No pipeline recorded.");
+
+/* ---------- globe: a conceptual map of the recorded strategies and trades ---------- */
+$("hud-taken").textContent = cnt("filled"); $("hud-open").textContent = cnt("open"); $("hud-closed").textContent = cnt("exited");
+var lastTick = EV.last_tick || [], proposedNow = lastTick.filter(function(x){ return x.outcome !== "NO TRADE"; }).length;
+$("hud-prop").textContent = lastTick.length ? proposedNow + " of " + lastTick.length : "n/a";
+var gs = $("globe-state"); gs.className = "note " + RUN[1];
+add(gs, h("span", "led"), document.createTextNode((S.run.status === "RUNNING" ? "" : "IDLE · ") + RUN[0]));
+gs.firstChild.setAttribute("aria-hidden", "true");
+
+var STRAT = S.strategies || [], NODES = [], RAD = Math.PI / 180;
+STRAT.forEach(function(s, n){
+  var lon = n * 360 / Math.max(1, STRAT.length), oc = s.last ? s.last.outcome : null;
+  NODES.push({id: "s:" + s.name, kind: "strategy", s: s, lat: 0, lon: lon, cls: "n-" + (OUT[oc] || "no"), label: s.name,
+              aria: "Strategy " + s.name + ", last evaluation: " + (oc || "not recorded")});
+  var mine = trades.filter(function(t){ return t.strategy === s.name; });
+  ["open", "closed"].forEach(function(side){
+    var grp = mine.filter(function(t){ return (t.status === "open") === (side === "open"); });
+    grp.forEach(function(t, i){
+      NODES.push({id: "t:" + t.sid, kind: "trade", t: t, parent: lon, lat: side === "open" ? 40 : -40, lon: lon + (i - (grp.length - 1) / 2) * 22, cls: "n-" + side, open: side === "open",
+                  label: side + " · " + hm(t.opened_local).slice(5, 10), aria: (side === "open" ? "Open" : "Closed") + " trade, " + t.strategy + ", opened " + hm(t.opened_local) + " simulated clock"});
+    });
+  });
+});
+var stage = $("stage"), canvas = $("globe"), ctx = canvas.getContext("2d"), nodesEl = $("nodes"), rot = -20, tilt = 0.36;
+var reduce = window.matchMedia("(prefers-reduced-motion: reduce)"), spinning = !reduce.matches, spinBtn = $("spin");
+NODES.forEach(function(n){
+  var b = h("button", "node " + n.cls + (n.kind === "trade" ? " trade" + (n.open ? " isopen" : "") : "")); b.type = "button";
+  b.setAttribute("aria-label", n.aria); b.setAttribute("aria-pressed", "false"); b.title = n.aria;
+  add(b, h("i"), h("span", null, n.label)); b.firstChild.setAttribute("aria-hidden", "true");
+  b.onclick = function(){ select(selected === n ? null : n); };
+  n.el = b; nodesEl.appendChild(b);
+});
+function proj(lat, lon, R, cx, cy){
+  var p = lat * RAD, l = (lon + rot) * RAD, x = Math.cos(p) * Math.sin(l), y = Math.sin(p), z = Math.cos(p) * Math.cos(l);
+  return [cx + R * x, cy - R * (y * Math.cos(tilt) - z * Math.sin(tilt)), y * Math.sin(tilt) + z * Math.cos(tilt)];
+}
+function draw(){
+  var w = stage.clientWidth, hh = stage.clientHeight; if (!w || !hh) return;
+  var dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(hh * dpr)){ canvas.width = Math.round(w * dpr); canvas.height = Math.round(hh * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, hh);
+  var R = Math.max(40, Math.min(w * 0.36, hh * 0.44)), cx = w / 2, cy = hh / 2, live = S.run.status === "RUNNING";
+  var g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+  g.addColorStop(0, live ? "rgba(47,191,174,.20)" : "rgba(138,158,172,.13)"); g.addColorStop(1, "rgba(5,8,12,.05)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fill();
+  var tone = live ? "47,191,174" : "138,158,172";               // idle = grey: the sphere only takes colour if the record says the bot was running
+  function line(pts, a){
+    for (var i = 1; i < pts.length; i++){
+      var front = pts[i][2] > 0 && pts[i - 1][2] > 0;
+      ctx.strokeStyle = "rgba(" + tone + "," + (front ? a : a * 0.28) + ")"; ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+    }
+  }
+  ctx.lineWidth = 1; var lat, lon, pts;
+  for (lon = 0; lon < 360; lon += 30){ pts = []; for (lat = -90; lat <= 90; lat += 6) pts.push(proj(lat, lon, R, cx, cy)); line(pts, 0.34); }
+  for (lat = -60; lat <= 60; lat += 30){ pts = []; for (lon = 0; lon <= 360; lon += 6) pts.push(proj(lat, lon, R, cx, cy)); line(pts, lat === 0 ? 0.6 : 0.34); }
+  ctx.strokeStyle = "rgba(" + tone + ",.75)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.stroke();
+  ctx.strokeStyle = "rgba(" + tone + ",.22)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R + 7, 0, 6.2832); ctx.stroke();
+  NODES.forEach(function(n){                                      // links: a strategy to each trade it opened (recorded), drawn along the surface
+    if (n.kind !== "trade") return; pts = [];
+    for (var k = 0; k <= 10; k++) pts.push(proj(n.lat * k / 10, n.parent + (n.lon - n.parent) * k / 10, R, cx, cy));
+    var hot = selected && (selected === n || (selected.kind === "strategy" && selected.s.name === n.t.strategy) || (selected.kind === "stage" && stageTrades(selected.key).indexOf(n.t) >= 0));
+    ctx.lineWidth = hot ? 1.6 : 1; tone = hot ? "85,217,230" : (live ? "47,191,174" : "138,158,172"); line(pts, hot ? 0.95 : 0.55);
+    tone = live ? "47,191,174" : "138,158,172";
+  });
+  NODES.forEach(function(n){
+    var p = proj(n.lat, n.lon, R, cx, cy);
+    n.el.style.transform = "translate(" + p[0].toFixed(1) + "px," + p[1].toFixed(1) + "px)";
+    n.el.classList.toggle("back", p[2] <= 0); n.el.classList.toggle("lft", p[0] > cx + 4); n.el.style.zIndex = p[2] > 0 ? 2 : 1;
+  });
+}
+var lastT = 0;
+function frame(t){
+  if (spinning && !document.hidden){ if (lastT) rot = (rot + (t - lastT) * 0.003) % 360; draw(); }     // 3 degrees per second: decoration only
+  lastT = t; requestAnimationFrame(frame);
+}
+function setSpin(on){ spinning = on; lastT = 0; spinBtn.textContent = on ? "Pause rotation" : "Rotate view"; spinBtn.setAttribute("aria-pressed", on ? "false" : "true"); draw(); }
+spinBtn.onclick = function(){ setSpin(!spinning); };
+spinBtn.title = "The rotation is a visual effect only. Nothing is running, scanning or updating.";
+setSpin(spinning);
+requestAnimationFrame(frame);
+if (window.ResizeObserver) new ResizeObserver(function(){ draw(); }).observe(stage);
+
+function stageTrades(k){ return k === "open" ? trades.filter(function(t){ return t.status === "open"; }) : k === "exited" ? trades.filter(function(t){ return t.status !== "open"; }) : k === "filled" ? trades : []; }
+var LEGEND = "● strategy, coloured by its last evaluation   ◆ open trade (upper ring)   ◇ closed trade (lower ring). Positions are a diagram, not geography or exposure. Rotation is visual only.";
+function select(n){
+  selected = n; NODES.forEach(function(x){ x.el.setAttribute("aria-pressed", x === n ? "true" : "false"); });
+  var txt = $("readout-txt"); txt.textContent = "";
+  $("clear").hidden = !n; $("to-records").hidden = !n; recSeg.btn.sel.hidden = !n; logSeg.btn.link.hidden = !n;
+  if (!n){
+    add(txt, h("b", null, STRAT.length + " strategies · " + trades.length + " trades recorded. "), document.createTextNode("Select a node for its recorded details. "), h("span", "long", LEGEND),
+        h("span", "short", "● strategy ◆ open ◇ closed. A diagram, not geography. Rotation is visual only."));
+    if (recSeg.current === "sel") recSeg.pick("trades"); if (logSeg.current === "link") logSeg.pick("key");
+    pipePager.draw(); draw(); return;
+  }
+  if (n.kind === "stage"){
+    var k = n.key, opens = decisions.filter(function(d){ return d.action === "open"; }), st = stageTrades(k), sids = st.map(function(t){ return t.sid; });
+    add(txt, h("b", null, P[k].label + ": " + cnt(k)), document.createTextNode(" · " + P[k].sub + " · whole run, recorded"));
+    selItems = [{kind: "head", v: "Stage: " + P[k].label + " (" + cnt(k) + ")"}].concat(
+      k === "seen" || k === "approved" ? opens.map(function(d){ return {kind: "risk", v: d}; }) : st.map(function(t){ return {kind: "trade", v: t}; }));
+    logLinked = LOG.filter(function(e){ return k === "seen" ? e.k === "PROPOSE" && e.m.indexOf("exit_manager") !== 0 : k === "approved" ? e.k === "RISK" && / open: /.test(e.m) : k === "filled" ? e.k === "FILL" && / open: /.test(e.m)
+      : k === "open" ? e.key && sids.indexOf(e.sid) >= 0 : (e.k === "EXIT?" || e.k === "EXIT"); });
+  } else { setSpin(false); rot = -n.lon; }                        // a globe node: stop and turn it to the front
+  pipePager.draw(); draw();
+  if (n.kind === "stage"){ /* built above */ }
+  else if (n.kind === "strategy"){
+    var s = n.s, mine = trades.filter(function(t){ return t.strategy === s.name; });
+    add(txt, h("b", null, s.name), document.createTextNode(" · last evaluation " + (s.last ? s.last.outcome + (s.last.code ? " [" + s.last.code + "]" : "") : "not recorded") +
+        " · whole run: " + s.proposed + " proposed, " + s.trades + " traded (" + s.open + " open, " + s.closed + " closed), " + num(s.skips) + " skips"));
+    selItems = [{kind: "head", v: "Strategy " + s.name}].concat(s.last ? [{kind: "tick", v: s.last}] : [],
+      [{kind: "kv", v: ["Proposed, whole run", String(s.proposed)]}, {kind: "kv", v: ["Trades open / closed", s.open + " / " + s.closed]}, {kind: "kv", v: ["Skips, whole run", num(s.skips)]}],
+      mine.map(function(t){ return {kind: "trade", v: t}; }), decisions.filter(function(d){ return d.owner === s.name; }).map(function(d){ return {kind: "risk", v: d}; }));
+    logLinked = LOG.filter(function(e){ return e.s === s.name; });
+  } else {
+    var t = n.t;
+    add(txt, h("b", null, t.strategy + " · " + (n.open ? "open" : "closed") + " trade"), document.createTextNode(" · opened " + hm(t.opened_local) + " (sim.) · " + (n.open ? "open, not revalued here" : val(t.status_text) + ", " + val(t.result))));
+    selItems = [{kind: "head", v: "Trade " + t.sid}, {kind: "trade", v: t}].concat(decisions.filter(function(d){ return d.sid === t.sid; }).map(function(d){ return {kind: "risk", v: d}; }));
+    logLinked = LOG.filter(function(e){ return e.sid === t.sid; });
+  }
+  logSeg.btn.link.textContent = "Linked " + logLinked.length;
+  recSeg.pick("sel"); logSeg.pick("link"); draw();
+  if (n.kind === "stage" && mq.matches) show(2);                  // small screens: the stage cards are on another tab, so go to its records
+}
+$("clear").onclick = function(){ select(null); };
+
+/* ---------- small-screen tabs: one panel at a time, never a scroll ---------- */
+var mq = window.matchMedia("(max-width:860px)"), tabs = Array.prototype.slice.call($("tabs").children), current = 0;
+function show(n, focus){
+  current = n;
+  tabs.forEach(function(t, i){
+    var on = i === n, p = $(t.getAttribute("aria-controls"));
+    t.setAttribute("aria-selected", on ? "true" : "false"); t.tabIndex = on ? 0 : -1;
+    if (mq.matches){ p.hidden = !on; p.setAttribute("role", "tabpanel"); } else { p.hidden = false; p.removeAttribute("role"); }
+  });
+  if (focus) tabs[n].focus();
+  relayout();
+}
+tabs.forEach(function(t, i){
+  t.onclick = function(){ show(i); };
+  t.onkeydown = function(ev){
+    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft"){ ev.preventDefault(); show((i + (ev.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length, true); }
+    if (ev.key === "Home"){ ev.preventDefault(); show(0, true); } if (ev.key === "End"){ ev.preventDefault(); show(tabs.length - 1, true); }
+  };
+});
+$("to-records").onclick = function(){ show(2, true); };
+function relayout(){ pipePager.layout(); recPager.layout(); logPager.layout(); draw(); }
+var timer; window.addEventListener("resize", function(){ clearTimeout(timer); timer = setTimeout(function(){ show(current); }, 80); });
+if (mq.addEventListener) mq.addEventListener("change", function(){ show(current); });
+select(null);
+show(0);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+})();
+</script>
+</body>
+</html>
